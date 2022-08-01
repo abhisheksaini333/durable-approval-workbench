@@ -1,0 +1,11 @@
+node_modules/
+.tools/
+.local/
+dist/
+web/dist/
+playwright-report/
+test-results/
+.env
+artifacts/
+*.log
+.DS_Store
