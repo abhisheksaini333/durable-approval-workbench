@@ -9,3 +9,10 @@ describe('resource identifiers', () => {
    assert.throws(() => D.identifier(value, 'tenant'), (e: any) => e.code === 'invalid_identifier');
  });
 });
+
+describe('onboarding input', () => {
+ it('normalizes display text without accepting undeclared authority fields', () => {
+  has('parseRequest'); assert.deepEqual(D.parseRequest({customer:'  Sample Labs  ',plan:'enterprise',seats:25}), {customer:'Sample Labs',plan:'enterprise',seats:25});
+  for(const value of [null, [], {customer:'x',plan:'standard',seats:0}, {customer:'x',plan:'standard',seats:1.5}, {customer:'x',plan:'standard',seats:1001}, {customer:'x\nadmin',plan:'standard',seats:1}, {customer:'x',plan:'root',seats:1}, {customer:'x',plan:'standard',seats:1,tenantId:'other'}]) assert.throws(() => D.parseRequest(value));
+ });
+});
