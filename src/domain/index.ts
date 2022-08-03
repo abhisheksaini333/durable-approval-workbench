@@ -37,3 +37,13 @@ export function parsePolicy(value: unknown): Policy {
  if(typeof r.reminderAfterMs!=='number' || !Number.isSafeInteger(r.reminderAfterMs) || r.reminderAfterMs<1 || r.reminderAfterMs>=r.approvalTimeoutMs) throw new DomainError('invalid_reminder','Reminder must precede expiry');
  return {stages:r.stages.slice(),approvalTimeoutMs:r.approvalTimeoutMs,reminderAfterMs:r.reminderAfterMs};
 }
+
+export type Role = 'requester' | 'security-reviewer' | 'commercial-reviewer' | 'operator';
+export interface Actor { id: string; tenantId: string; roles: Role[]; }
+const knownRoles: Role[] = ['requester','security-reviewer','commercial-reviewer','operator'];
+export function parseActor(value: unknown): Actor {
+ const r=record(value,['id','tenantId','roles']);
+ const id=identifier(r.id,'actor'),tenantId=identifier(r.tenantId,'tenant');
+ if(!Array.isArray(r.roles)||r.roles.length>32||r.roles.some(x=>typeof x!=='string'||x.length>80)) throw new DomainError('invalid_roles','Identity roles are invalid',401);
+ return {id,tenantId,roles:[...new Set(r.roles.filter((x):x is Role=>knownRoles.includes(x as Role)))]};
+}

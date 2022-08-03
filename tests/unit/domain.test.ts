@@ -25,3 +25,10 @@ describe('review policy', () => {
   for(const patch of [{stages:[]},{stages:['security','security']},{stages:['root']},{approvalTimeoutMs:NaN},{approvalTimeoutMs:1999},{approvalTimeoutMs:86400001},{reminderAfterMs:60000},{reminderAfterMs:0}]) assert.throws(()=>D.parsePolicy({...p,...patch}));
  });
 });
+
+describe('actor boundary',()=>{
+ it('keeps only known roles and rejects malformed identity claims',()=>{
+  has('parseActor');assert.deepEqual(D.parseActor({id:'r1',tenantId:'demo',roles:['security-reviewer','offline_access']}),{id:'r1',tenantId:'demo',roles:['security-reviewer']});
+  for(const value of [{id:'r1',tenantId:'',roles:[]},{id:'r1',tenantId:'demo',roles:'operator'},{id:'r1',tenantId:'demo',roles:[1]},{id:'r1',tenantId:'demo',roles:Array(33).fill('operator')},{id:'r1',tenantId:'demo',roles:[],admin:true}])assert.throws(()=>D.parseActor(value));
+ });
+});
