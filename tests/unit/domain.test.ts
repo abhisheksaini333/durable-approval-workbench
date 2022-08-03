@@ -16,3 +16,12 @@ describe('onboarding input', () => {
   for(const value of [null, [], {customer:'x',plan:'standard',seats:0}, {customer:'x',plan:'standard',seats:1.5}, {customer:'x',plan:'standard',seats:1001}, {customer:'x\nadmin',plan:'standard',seats:1}, {customer:'x',plan:'root',seats:1}, {customer:'x',plan:'standard',seats:1,tenantId:'other'}]) assert.throws(() => D.parseRequest(value));
  });
 });
+
+describe('review policy', () => {
+ it('requires distinct ordered stages and finite bounded durations', () => {
+  has('parsePolicy');
+  const p={stages:['security','commercial'],approvalTimeoutMs:60000,reminderAfterMs:30000};
+  assert.deepEqual(D.parsePolicy(p),p);
+  for(const patch of [{stages:[]},{stages:['security','security']},{stages:['root']},{approvalTimeoutMs:NaN},{approvalTimeoutMs:1999},{approvalTimeoutMs:86400001},{reminderAfterMs:60000},{reminderAfterMs:0}]) assert.throws(()=>D.parsePolicy({...p,...patch}));
+ });
+});

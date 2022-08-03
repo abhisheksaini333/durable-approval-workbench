@@ -27,3 +27,13 @@ export function parseRequest(value: unknown): RequestInput {
  if(typeof r.seats !== 'number' || !Number.isSafeInteger(r.seats) || r.seats < 1 || r.seats > 1000) throw new DomainError('invalid_seats', 'Seats must be between 1 and 1000');
  return {customer, plan:r.plan, seats:r.seats};
 }
+
+export type Stage = 'security' | 'commercial';
+export interface Policy { stages: Stage[]; approvalTimeoutMs: number; reminderAfterMs: number; }
+export function parsePolicy(value: unknown): Policy {
+ const r = record(value,['stages','approvalTimeoutMs','reminderAfterMs']);
+ if(!Array.isArray(r.stages) || r.stages.length<1 || r.stages.length>2 || new Set(r.stages).size!==r.stages.length || r.stages.some(s=>s!=='security'&&s!=='commercial')) throw new DomainError('invalid_stages','Select distinct supported review stages');
+ if(typeof r.approvalTimeoutMs!=='number' || !Number.isSafeInteger(r.approvalTimeoutMs) || r.approvalTimeoutMs<2000 || r.approvalTimeoutMs>86400000) throw new DomainError('invalid_deadline','Approval deadline is outside configured limits');
+ if(typeof r.reminderAfterMs!=='number' || !Number.isSafeInteger(r.reminderAfterMs) || r.reminderAfterMs<1 || r.reminderAfterMs>=r.approvalTimeoutMs) throw new DomainError('invalid_reminder','Reminder must precede expiry');
+ return {stages:r.stages.slice(),approvalTimeoutMs:r.approvalTimeoutMs,reminderAfterMs:r.reminderAfterMs};
+}
