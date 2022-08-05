@@ -71,3 +71,18 @@ export function parseDecision(value:unknown):Decision {
  return {id,stage:c.stage,actor:parseActor(c.actor),choice:c.choice,note:boundedText(c.note,'note',500,true),revision:c.revision};
 }
 export function decisionFingerprint(c:Decision):string {return JSON.stringify([c.actor.tenantId,c.actor.id,c.stage,c.choice,c.note,c.revision]);}
+
+function decisionRejection(s:State,c:Decision,now:number):string|undefined {return undefined;}
+function advanceDecision(s:State,c:Decision,now:number):void {s.revision++;}
+export function appendAudit(s:State,event:string,now:number,actorId?:string,stage?:Stage,detail?:string):void {
+ s.audit.push({sequence:++s.auditSequence,at:clock(now),event,...(actorId?{actorId}:{}),...(stage?{stage}:{}),...(detail?{detail}:{})});
+}
+export function applyDecision(previous:State,value:unknown,now:number):State {
+ clock(now);const c=parseDecision(value),s=copy(previous),fingerprint=decisionFingerprint(c),prior=s.receipts[c.id];
+ if(prior)return s;
+ const reason=decisionRejection(s,c,now);
+ if(!reason)advanceDecision(s,c,now);
+ s.receipts[c.id]={id:c.id,fingerprint,outcome:reason?'rejected':'accepted',...(reason?{reason}:{}),revision:s.revision,at:now};
+ appendAudit(s,reason?'decision_rejected':'decision_accepted',now,c.actor.id,c.stage,reason||c.note);
+ return s;
+}

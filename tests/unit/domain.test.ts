@@ -51,3 +51,8 @@ describe('decision intent',()=>{it('normalizes notes and binds fingerprints to a
  for(const patch of [{choice:'reject'},{stage:'commercial'},{actor:{...actor,id:'another'}},{revision:1}])assert.notEqual(D.decisionFingerprint(a),D.decisionFingerprint(D.parseDecision(command(patch))));
  for(const patch of [{choice:'skip'},{revision:-1},{revision:0.1},{note:'x'.repeat(501)},{extra:true}])assert.throws(()=>D.parseDecision(command(patch)));
 });});
+
+describe('decision replay',()=>{it('returns the same receipt without advancing twice or mutating prior state',()=>{
+ has('applyDecision');const first=state();const accepted=D.applyDecision(first,command(),1200);const replay=D.applyDecision(accepted,command(),1500);
+ assert.equal(first.revision,0);assert.equal(accepted.revision,1);assert.deepEqual(replay,accepted);assert.equal(accepted.receipts['decision-1'].outcome,'accepted');
+});});
