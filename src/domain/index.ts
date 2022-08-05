@@ -47,3 +47,16 @@ export function parseActor(value: unknown): Actor {
  if(!Array.isArray(r.roles)||r.roles.length>32||r.roles.some(x=>typeof x!=='string'||x.length>80)) throw new DomainError('invalid_roles','Identity roles are invalid',401);
  return {id,tenantId,roles:[...new Set(r.roles.filter((x):x is Role=>knownRoles.includes(x as Role)))]};
 }
+
+export type Status='pending'|'provisioning'|'cancelling'|'approved'|'rejected'|'expired'|'cancelled'|'failed'|'compensation_failed';
+export interface Metadata {requestId:string;tenantId:string;requesterId:string;}
+export interface Audit {sequence:number;at:number;event:string;actorId?:string;stage?:Stage;detail?:string;}
+export interface Receipt {id:string;fingerprint:string;outcome:'accepted'|'rejected';reason?:string;revision:number;at:number;}
+export interface State {schemaVersion:1;request:RequestInput&Metadata;policy:Policy;status:Status;stageIndex:number;revision:number;createdAt:number;deadline:number;reminded:boolean;receipts:Record<string,Receipt>;audit:Audit[];auditSequence:number;cancellationRequested:boolean;reserved:boolean;activated:boolean;errorCode?:string;}
+export function clock(value:number):number {if(!Number.isSafeInteger(value)||value<0)throw new DomainError('invalid_clock','Invalid workflow time');return value;}
+export function copy<T>(value:T):T {return JSON.parse(JSON.stringify(value)) as T;}
+export function createState(input:unknown,metadata:Metadata,policy:unknown,now:number):State {
+ const request={...parseRequest(input),requestId:identifier(metadata.requestId,'request'),tenantId:identifier(metadata.tenantId,'tenant'),requesterId:identifier(metadata.requesterId,'requester')};
+ const p=parsePolicy(policy);clock(now);clock(now+p.approvalTimeoutMs);
+ return {schemaVersion:1,request,policy:p,status:'pending',stageIndex:0,revision:0,createdAt:now,deadline:now+p.approvalTimeoutMs,reminded:false,receipts:{},audit:[{sequence:1,at:now,event:'requested',actorId:request.requesterId}],auditSequence:1,cancellationRequested:false,reserved:false,activated:false};
+}

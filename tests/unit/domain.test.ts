@@ -32,3 +32,14 @@ describe('actor boundary',()=>{
   for(const value of [{id:'r1',tenantId:'',roles:[]},{id:'r1',tenantId:'demo',roles:'operator'},{id:'r1',tenantId:'demo',roles:[1]},{id:'r1',tenantId:'demo',roles:Array(33).fill('operator')},{id:'r1',tenantId:'demo',roles:[],admin:true}])assert.throws(()=>D.parseActor(value));
  });
 });
+
+const metadata={requestId:'request-1',tenantId:'demo',requesterId:'requester-1'};
+const input={customer:'Sample Labs',plan:'enterprise',seats:12};
+const policy={stages:['security','commercial'],approvalTimeoutMs:60000,reminderAfterMs:30000};
+const actor={id:'reviewer-1',tenantId:'demo',roles:['security-reviewer']};
+const state=()=>D.createState(input,metadata,policy,1000);
+describe('workflow initialization',()=>{it('captures the canonical request and deadline without shared input references',()=>{
+ has('createState');const p={...policy,stages:[...policy.stages]};const s=D.createState(input,metadata,p,1000);p.stages.length=0;
+ assert.equal(s.status,'pending');assert.equal(s.deadline,61000);assert.equal(s.revision,0);assert.equal(s.policy.stages.length,2);assert.equal(s.audit[0].event,'requested');
+ assert.throws(()=>D.createState(input,metadata,policy,NaN));assert.throws(()=>D.createState(input,metadata,policy,Number.MAX_SAFE_INTEGER));
+});});
