@@ -60,3 +60,14 @@ export function createState(input:unknown,metadata:Metadata,policy:unknown,now:n
  const p=parsePolicy(policy);clock(now);clock(now+p.approvalTimeoutMs);
  return {schemaVersion:1,request,policy:p,status:'pending',stageIndex:0,revision:0,createdAt:now,deadline:now+p.approvalTimeoutMs,reminded:false,receipts:{},audit:[{sequence:1,at:now,event:'requested',actorId:request.requesterId}],auditSequence:1,cancellationRequested:false,reserved:false,activated:false};
 }
+
+export interface Decision {id:string;stage:Stage;actor:Actor;choice:'approve'|'reject';note:string;revision:number;}
+export function parseDecision(value:unknown):Decision {
+ const c=record(value,['id','stage','actor','choice','note','revision']);
+ const id=identifier(c.id,'decision');
+ if(c.stage!=='security'&&c.stage!=='commercial')throw new DomainError('invalid_stage','Unknown review stage');
+ if(c.choice!=='approve'&&c.choice!=='reject')throw new DomainError('invalid_choice','Choose approve or reject');
+ if(typeof c.revision!=='number'||!Number.isSafeInteger(c.revision)||c.revision<0)throw new DomainError('invalid_revision','Expected revision is invalid');
+ return {id,stage:c.stage,actor:parseActor(c.actor),choice:c.choice,note:boundedText(c.note,'note',500,true),revision:c.revision};
+}
+export function decisionFingerprint(c:Decision):string {return JSON.stringify([c.actor.tenantId,c.actor.id,c.stage,c.choice,c.note,c.revision]);}

@@ -43,3 +43,11 @@ describe('workflow initialization',()=>{it('captures the canonical request and d
  assert.equal(s.status,'pending');assert.equal(s.deadline,61000);assert.equal(s.revision,0);assert.equal(s.policy.stages.length,2);assert.equal(s.audit[0].event,'requested');
  assert.throws(()=>D.createState(input,metadata,policy,NaN));assert.throws(()=>D.createState(input,metadata,policy,Number.MAX_SAFE_INTEGER));
 });});
+
+const command=(changes:any={})=>({id:'decision-1',stage:'security',actor,choice:'approve',note:'Reviewed evidence',revision:0,...changes});
+describe('decision intent',()=>{it('normalizes notes and binds fingerprints to author stage and choice',()=>{
+ has('parseDecision');has('decisionFingerprint');const a=D.parseDecision(command());
+ assert.equal(D.decisionFingerprint(a),D.decisionFingerprint(D.parseDecision(command({note:'  Reviewed evidence  '}))));
+ for(const patch of [{choice:'reject'},{stage:'commercial'},{actor:{...actor,id:'another'}},{revision:1}])assert.notEqual(D.decisionFingerprint(a),D.decisionFingerprint(D.parseDecision(command(patch))));
+ for(const patch of [{choice:'skip'},{revision:-1},{revision:0.1},{note:'x'.repeat(501)},{extra:true}])assert.throws(()=>D.parseDecision(command(patch)));
+});});
