@@ -56,3 +56,9 @@ describe('decision replay',()=>{it('returns the same receipt without advancing t
  has('applyDecision');const first=state();const accepted=D.applyDecision(first,command(),1200);const replay=D.applyDecision(accepted,command(),1500);
  assert.equal(first.revision,0);assert.equal(accepted.revision,1);assert.deepEqual(replay,accepted);assert.equal(accepted.receipts['decision-1'].outcome,'accepted');
 });});
+
+describe('decision identity conflicts',()=>{it('preserves the original receipt after changed intent',()=>{
+ const accepted=D.applyDecision(state(),command(),1200),before=JSON.stringify(accepted);
+ assert.throws(()=>D.applyDecision(accepted,command({choice:'reject'}),1500),(e:any)=>e.code==='decision_conflict');
+ assert.equal(JSON.stringify(accepted),before);
+});});

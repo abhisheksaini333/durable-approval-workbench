@@ -79,7 +79,7 @@ export function appendAudit(s:State,event:string,now:number,actorId?:string,stag
 }
 export function applyDecision(previous:State,value:unknown,now:number):State {
  clock(now);const c=parseDecision(value),s=copy(previous),fingerprint=decisionFingerprint(c),prior=s.receipts[c.id];
- if(prior)return s;
+ if(prior){if(prior.fingerprint!==fingerprint)throw new DomainError('decision_conflict','Decision identifier already belongs to another intent',409);return s;}
  const reason=decisionRejection(s,c,now);
  if(!reason)advanceDecision(s,c,now);
  s.receipts[c.id]={id:c.id,fingerprint,outcome:reason?'rejected':'accepted',...(reason?{reason}:{}),revision:s.revision,at:now};
