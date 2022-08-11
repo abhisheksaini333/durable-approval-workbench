@@ -62,3 +62,9 @@ describe('decision identity conflicts',()=>{it('preserves the original receipt a
  assert.throws(()=>D.applyDecision(accepted,command({choice:'reject'}),1500),(e:any)=>e.code==='decision_conflict');
  assert.equal(JSON.stringify(accepted),before);
 });});
+
+describe('review authorization',()=>{it('records rejected receipts without advancing business state',()=>{
+ for(const [patch,reason] of [[{actor:{...actor,tenantId:'other'}},'wrong_tenant'],[{actor:{...actor,roles:['requester']}},'wrong_role'],[{stage:'commercial'},'wrong_stage'],[{revision:9},'stale_revision']] as any[]){
+  const s=D.applyDecision(state(),command(patch),1200);assert.equal(s.revision,0);assert.equal(s.receipts['decision-1'].reason,reason);assert.equal(s.receipts['decision-1'].outcome,'rejected');
+ }
+});});

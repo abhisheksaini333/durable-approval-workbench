@@ -72,7 +72,14 @@ export function parseDecision(value:unknown):Decision {
 }
 export function decisionFingerprint(c:Decision):string {return JSON.stringify([c.actor.tenantId,c.actor.id,c.stage,c.choice,c.note,c.revision]);}
 
-function decisionRejection(s:State,c:Decision,now:number):string|undefined {return undefined;}
+function decisionRejection(s:State,c:Decision,now:number):string|undefined {
+ if(c.actor.tenantId!==s.request.tenantId)return 'wrong_tenant';
+ if(s.status!=='pending')return 'not_pending';
+ if(c.stage!==s.policy.stages[s.stageIndex])return 'wrong_stage';
+ if(!c.actor.roles.includes(`${c.stage}-reviewer` as Role))return 'wrong_role';
+ if(c.revision!==s.revision)return 'stale_revision';
+ return undefined;
+}
 function advanceDecision(s:State,c:Decision,now:number):void {s.revision++;}
 export function appendAudit(s:State,event:string,now:number,actorId?:string,stage?:Stage,detail?:string):void {
  s.audit.push({sequence:++s.auditSequence,at:clock(now),event,...(actorId?{actorId}:{}),...(stage?{stage}:{}),...(detail?{detail}:{})});
