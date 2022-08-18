@@ -77,6 +77,7 @@ function decisionRejection(s:State,c:Decision,now:number):string|undefined {
  if(s.status!=='pending')return 'not_pending';
  if(c.stage!==s.policy.stages[s.stageIndex])return 'wrong_stage';
  if(!c.actor.roles.includes(`${c.stage}-reviewer` as Role))return 'wrong_role';
+ if(c.actor.id===s.request.requesterId)return 'self_review';
  if(c.revision!==s.revision)return 'stale_revision';
  return undefined;
 }

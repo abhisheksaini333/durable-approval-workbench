@@ -68,3 +68,8 @@ describe('review authorization',()=>{it('records rejected receipts without advan
   const s=D.applyDecision(state(),command(patch),1200);assert.equal(s.revision,0);assert.equal(s.receipts['decision-1'].reason,reason);assert.equal(s.receipts['decision-1'].outcome,'rejected');
  }
 });});
+
+describe('separation of duties',()=>{it('rejects self approval even when requester also has review role',()=>{
+ const s=D.applyDecision(state(),command({actor:{...actor,id:metadata.requesterId}}),1200);
+ assert.equal(s.receipts['decision-1'].reason,'self_review');assert.equal(s.revision,0);
+});});
