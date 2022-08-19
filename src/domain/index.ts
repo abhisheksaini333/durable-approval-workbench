@@ -81,7 +81,10 @@ function decisionRejection(s:State,c:Decision,now:number):string|undefined {
  if(c.revision!==s.revision)return 'stale_revision';
  return undefined;
 }
-function advanceDecision(s:State,c:Decision,now:number):void {s.revision++;}
+function advanceDecision(s:State,c:Decision,now:number):void {
+ s.revision++;s.stageIndex++;
+ if(s.stageIndex===s.policy.stages.length)s.status='provisioning';
+}
 export function appendAudit(s:State,event:string,now:number,actorId?:string,stage?:Stage,detail?:string):void {
  s.audit.push({sequence:++s.auditSequence,at:clock(now),event,...(actorId?{actorId}:{}),...(stage?{stage}:{}),...(detail?{detail}:{})});
 }

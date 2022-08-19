@@ -73,3 +73,10 @@ describe('separation of duties',()=>{it('rejects self approval even when request
  const s=D.applyDecision(state(),command({actor:{...actor,id:metadata.requesterId}}),1200);
  assert.equal(s.receipts['decision-1'].reason,'self_review');assert.equal(s.revision,0);
 });});
+
+describe('ordered approvals',()=>{it('requires both distinct stages before provisioning',()=>{
+ const a=D.applyDecision(state(),command(),1200);assert.equal(a.stageIndex,1);assert.equal(a.status,'pending');
+ const b=D.applyDecision(a,command({id:'decision-2',stage:'commercial',actor:{...actor,id:'reviewer-2',roles:['commercial-reviewer']},revision:1}),1300);
+ assert.equal(b.stageIndex,2);assert.equal(b.status,'provisioning');assert.equal(b.revision,2);
+ const wrong=D.applyDecision(state(),command({stage:'commercial',actor:{...actor,roles:['commercial-reviewer']}}),1200);assert.equal(wrong.status,'pending');
+});});
