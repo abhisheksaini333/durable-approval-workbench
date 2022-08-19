@@ -80,3 +80,9 @@ describe('ordered approvals',()=>{it('requires both distinct stages before provi
  assert.equal(b.stageIndex,2);assert.equal(b.status,'provisioning');assert.equal(b.revision,2);
  const wrong=D.applyDecision(state(),command({stage:'commercial',actor:{...actor,roles:['commercial-reviewer']}}),1200);assert.equal(wrong.status,'pending');
 });});
+
+describe('terminal rejection',()=>{it('records the negative decision and refuses later approvals',()=>{
+ const rejected=D.applyDecision(state(),command({choice:'reject',note:'Missing contract'}),1200);
+ assert.equal(rejected.status,'rejected');assert.equal(rejected.stageIndex,0);assert.equal(rejected.receipts['decision-1'].outcome,'accepted');
+ const later=D.applyDecision(rejected,command({id:'later',revision:1}),1300);assert.equal(later.status,'rejected');assert.equal(later.receipts.later.reason,'not_pending');
+});});

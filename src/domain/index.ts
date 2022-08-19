@@ -82,7 +82,9 @@ function decisionRejection(s:State,c:Decision,now:number):string|undefined {
  return undefined;
 }
 function advanceDecision(s:State,c:Decision,now:number):void {
- s.revision++;s.stageIndex++;
+ s.revision++;
+ if(c.choice==='reject'){s.status='rejected';return;}
+ s.stageIndex++;
  if(s.stageIndex===s.policy.stages.length)s.status='provisioning';
 }
 export function appendAudit(s:State,event:string,now:number,actorId?:string,stage?:Stage,detail?:string):void {
