@@ -106,3 +106,12 @@ export function expire(previous:State,now:number):State {
  if(s.status==='pending'&&now>=s.deadline){s.status='expired';s.revision++;appendAudit(s,'expired',now);}
  return s;
 }
+
+export function requestCancellation(previous:State,value:unknown,now:number):State {
+ const actor=parseActor(value);clock(now);
+ if(actor.tenantId!==previous.request.tenantId||(actor.id!==previous.request.requesterId&&!actor.roles.includes('operator')))throw new DomainError('forbidden','Cancellation is not permitted',403);
+ const s=copy(previous);
+ if(s.cancellationRequested)return s;
+ if(s.status!=='pending'&&s.status!=='provisioning')throw new DomainError('not_cancellable','Request is already terminal',409);
+ s.cancellationRequested=true;s.status=s.status==='provisioning'?'cancelling':'cancelled';s.revision++;appendAudit(s,'cancellation_requested',now,actor.id);return s;
+}

@@ -92,3 +92,10 @@ describe('deadline',()=>{it('rejects late signals before timer processing and ex
  assert.equal(D.applyDecision(s,command(),61000).receipts['decision-1'].reason,'expired');assert.equal(s.status,'pending');
  const rejected=D.applyDecision(s,command({choice:'reject'}),1200);assert.equal(D.expire(rejected,70000).status,'rejected');
 });});
+
+describe('cancellation',()=>{it('allows only the owner or tenant operator and preserves repeat cancellation',()=>{
+ has('requestCancellation');const own={id:metadata.requesterId,tenantId:'demo',roles:['requester']};
+ const cancelled=D.requestCancellation(state(),own,1200);assert.equal(cancelled.status,'cancelled');assert.equal(cancelled.cancellationRequested,true);assert.deepEqual(D.requestCancellation(cancelled,own,1400),cancelled);
+ assert.throws(()=>D.requestCancellation(state(),actor,1200));assert.throws(()=>D.requestCancellation(state(),{...own,tenantId:'other'},1200));
+ const running={...state(),status:'provisioning'};assert.equal(D.requestCancellation(running,own,1200).status,'cancelling');
+});});
