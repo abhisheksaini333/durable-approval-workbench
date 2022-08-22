@@ -86,3 +86,9 @@ describe('terminal rejection',()=>{it('records the negative decision and refuses
  assert.equal(rejected.status,'rejected');assert.equal(rejected.stageIndex,0);assert.equal(rejected.receipts['decision-1'].outcome,'accepted');
  const later=D.applyDecision(rejected,command({id:'later',revision:1}),1300);assert.equal(later.status,'rejected');assert.equal(later.receipts.later.reason,'not_pending');
 });});
+
+describe('deadline',()=>{it('rejects late signals before timer processing and expires only pending work',()=>{
+ has('expire');const s=state();assert.equal(D.expire(s,60999).status,'pending');assert.equal(D.expire(s,61000).status,'expired');
+ assert.equal(D.applyDecision(s,command(),61000).receipts['decision-1'].reason,'expired');assert.equal(s.status,'pending');
+ const rejected=D.applyDecision(s,command({choice:'reject'}),1200);assert.equal(D.expire(rejected,70000).status,'rejected');
+});});

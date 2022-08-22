@@ -75,6 +75,7 @@ export function decisionFingerprint(c:Decision):string {return JSON.stringify([c
 function decisionRejection(s:State,c:Decision,now:number):string|undefined {
  if(c.actor.tenantId!==s.request.tenantId)return 'wrong_tenant';
  if(s.status!=='pending')return 'not_pending';
+ if(now>=s.deadline)return 'expired';
  if(c.stage!==s.policy.stages[s.stageIndex])return 'wrong_stage';
  if(!c.actor.roles.includes(`${c.stage}-reviewer` as Role))return 'wrong_role';
  if(c.actor.id===s.request.requesterId)return 'self_review';
@@ -97,5 +98,11 @@ export function applyDecision(previous:State,value:unknown,now:number):State {
  if(!reason)advanceDecision(s,c,now);
  s.receipts[c.id]={id:c.id,fingerprint,outcome:reason?'rejected':'accepted',...(reason?{reason}:{}),revision:s.revision,at:now};
  appendAudit(s,reason?'decision_rejected':'decision_accepted',now,c.actor.id,c.stage,reason||c.note);
+ return s;
+}
+
+export function expire(previous:State,now:number):State {
+ const s=copy(previous);clock(now);
+ if(s.status==='pending'&&now>=s.deadline){s.status='expired';s.revision++;appendAudit(s,'expired',now);}
  return s;
 }
