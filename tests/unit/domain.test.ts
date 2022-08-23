@@ -99,3 +99,10 @@ describe('cancellation',()=>{it('allows only the owner or tenant operator and pr
  assert.throws(()=>D.requestCancellation(state(),actor,1200));assert.throws(()=>D.requestCancellation(state(),{...own,tenantId:'other'},1200));
  const running={...state(),status:'provisioning'};assert.equal(D.requestCancellation(running,own,1200).status,'cancelling');
 });});
+
+describe('bounded history state',()=>{it('retains ordered recent audit events and permits replay at capacity',()=>{
+ let s=state();for(let i=0;i<256;i++)s=D.applyDecision(s,command({id:'attempt-'+i,revision:99}),1200+i);
+ assert.equal(s.audit.length,100);assert.equal(s.audit[99].sequence,257);assert.equal(Object.keys(s.receipts).length,256);
+ assert.throws(()=>D.applyDecision(s,command({id:'overflow',revision:99}),1500),(e:any)=>e.code==='receipt_capacity');
+ assert.deepEqual(D.applyDecision(s,command({id:'attempt-0',revision:99}),1800),s);
+});});
