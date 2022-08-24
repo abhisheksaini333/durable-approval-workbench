@@ -106,3 +106,9 @@ describe('bounded history state',()=>{it('retains ordered recent audit events an
  assert.throws(()=>D.applyDecision(s,command({id:'overflow',revision:99}),1500),(e:any)=>e.code==='receipt_capacity');
  assert.deepEqual(D.applyDecision(s,command({id:'attempt-0',revision:99}),1800),s);
 });});
+
+describe('public snapshot',()=>{it('includes decision outcomes and ordered stages while omitting fingerprints',()=>{
+ has('publicSnapshot');const s=D.applyDecision(state(),command(),1200);const view=D.publicSnapshot(s);
+ assert.equal(view.receipts[0].id,'decision-1');assert.equal(view.receipts[0].fingerprint,undefined);assert.equal(view.stage,'commercial');assert.equal(view.request.customer,'Sample Labs');assert.equal(view.audit[1].actorId,actor.id);
+ assert.equal(JSON.stringify(view).includes('fingerprint'),false);
+});});

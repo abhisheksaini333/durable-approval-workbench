@@ -117,3 +117,7 @@ export function requestCancellation(previous:State,value:unknown,now:number):Sta
  if(s.status!=='pending'&&s.status!=='provisioning')throw new DomainError('not_cancellable','Request is already terminal',409);
  s.cancellationRequested=true;s.status=s.status==='provisioning'?'cancelling':'cancelled';s.revision++;appendAudit(s,'cancellation_requested',now,actor.id);return s;
 }
+
+export function publicSnapshot(s:State) {
+ return {request:s.request,status:s.status,stage:s.policy.stages[s.stageIndex]||null,stages:s.policy.stages,stageIndex:s.stageIndex,revision:s.revision,createdAt:s.createdAt,deadline:s.deadline,reminded:s.reminded,reserved:s.reserved,activated:s.activated,cancellationRequested:s.cancellationRequested,errorCode:s.errorCode||null,audit:s.audit,receipts:Object.values(s.receipts).map(({fingerprint,...receipt})=>receipt)};
+}
