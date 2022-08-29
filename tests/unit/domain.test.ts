@@ -112,3 +112,7 @@ describe('public snapshot',()=>{it('includes decision outcomes and ordered stage
  assert.equal(view.receipts[0].id,'decision-1');assert.equal(view.receipts[0].fingerprint,undefined);assert.equal(view.stage,'commercial');assert.equal(view.request.customer,'Sample Labs');assert.equal(view.audit[1].actorId,actor.id);
  assert.equal(JSON.stringify(view).includes('fingerprint'),false);
 });});
+
+describe('query isolation',()=>{it('does not expose nested mutable workflow state',()=>{
+ const s=state();const view=D.publicSnapshot(s);view.request.customer='changed';view.stages.length=0;view.audit[0].event='changed';assert.equal(s.request.customer,'Sample Labs');assert.equal(s.policy.stages.length,2);assert.equal(s.audit[0].event,'requested');
+});});
