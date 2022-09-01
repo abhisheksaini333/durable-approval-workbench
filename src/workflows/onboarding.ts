@@ -1,5 +1,5 @@
 import {condition,defineSignal,defineQuery,setHandler} from '@temporalio/workflow';
-import {Actor,Decision,Metadata,Policy,RequestInput,State,applyDecision,appendAudit,createState,publicSnapshot,requestCancellation,DomainError} from '../domain';
+import {Actor,Decision,Metadata,Policy,RequestInput,State,applyDecision,appendAudit,createState,publicSnapshot,requestCancellation,DomainError,expire} from '../domain';
 export interface OnboardingInput {request:RequestInput;metadata:Metadata;policy:Policy;}
 export const decide=defineSignal<[Decision]>('decision');
 export const cancel=defineSignal<[Actor]>('cancel');
@@ -10,6 +10,7 @@ export async function onboarding(input:OnboardingInput){
  setHandler(snapshot,()=>publicSnapshot(state));
  setHandler(decide,command=>guard(()=>applyDecision(state,command,Date.now())));
  setHandler(cancel,actor=>guard(()=>requestCancellation(state,actor,Date.now())));
- await condition(()=>state.status!=='pending');
+ await condition(()=>state.status!=='pending',Math.max(1,state.deadline-Date.now()));
+ state=expire(state,Date.now());
  return publicSnapshot(state);
 }

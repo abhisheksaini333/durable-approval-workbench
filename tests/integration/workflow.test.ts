@@ -13,11 +13,14 @@ describe('real Temporal workflow',function(){
  async function exercise(fn:(h:any)=>Promise<void>,override:any={}){
   const taskQueue='test-'+randomUUID();
   const worker=await Worker.create({connection:env.nativeConnection,taskQueue,workflowsPath:require.resolve('../../src/workflows/onboarding'),activities:{}});
-  await worker.runUntil(async()=>{const h=await env.workflowClient.start(onboarding,{workflowId:randomUUID(),taskQueue,args:[{...input,...override}]});try{await fn(h)}finally{try{await h.terminate()}catch{}}});
+  const running=worker.run();let h:any;try{h=await env.workflowClient.start(onboarding,{workflowId:randomUUID(),taskQueue,args:[{...input,...override}]});await h.query(snapshot);await fn(h)}finally{if(h)try{await h.terminate()}catch{}worker.shutdown();await running}
  }
  it('queries pending state and records a durable rejection receipt',async()=>exercise(async h=>{
   assert.equal((await h.query(snapshot)).status,'pending');
   await h.signal(decide,{id:'decision-1',stage:'security',actor:reviewer,choice:'reject',note:'Missing review evidence',revision:0});
   const result=await h.result();assert.equal(result.status,'rejected');assert.equal(result.receipts[0].outcome,'accepted');
+ }));
+ it('expires on the durable deadline',async()=>exercise(async h=>{
+  await env.sleep(21000);assert.equal((await h.query(snapshot)).status,'expired');
  }));
 });
