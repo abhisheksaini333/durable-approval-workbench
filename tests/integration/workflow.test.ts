@@ -23,4 +23,8 @@ describe('real Temporal workflow',function(){
  it('expires on the durable deadline',async()=>exercise(async h=>{
   await env.sleep(21000);assert.equal((await h.query(snapshot)).status,'expired');
  }));
+ it('records one reminder before approval expiry',async()=>exercise(async h=>{
+  await env.sleep(11000);const s=await h.query(snapshot);assert.equal(s.status,'pending');assert.equal(s.reminded,true);
+  assert.equal(s.audit.filter((x:any)=>x.event==='review_reminder').length,1);
+ }));
 });

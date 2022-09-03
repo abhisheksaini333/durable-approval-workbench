@@ -10,6 +10,8 @@ export async function onboarding(input:OnboardingInput){
  setHandler(snapshot,()=>publicSnapshot(state));
  setHandler(decide,command=>guard(()=>applyDecision(state,command,Date.now())));
  setHandler(cancel,actor=>guard(()=>requestCancellation(state,actor,Date.now())));
+ await condition(()=>state.status!=='pending',Math.max(1,state.createdAt+state.policy.reminderAfterMs-Date.now()));
+ if(state.status==='pending'){state.reminded=true;appendAudit(state,'review_reminder',Date.now(),undefined,state.policy.stages[state.stageIndex]);}
  await condition(()=>state.status!=='pending',Math.max(1,state.deadline-Date.now()));
  state=expire(state,Date.now());
  return publicSnapshot(state);
