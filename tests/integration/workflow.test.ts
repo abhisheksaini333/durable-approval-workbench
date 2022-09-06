@@ -10,9 +10,9 @@ describe('real Temporal workflow',function(){
  this.timeout(90000);let env:TestWorkflowEnvironment;
  before(async()=>{env=await TestWorkflowEnvironment.create({testServer:{path:process.env.TEMPORAL_TEST_SERVER||process.cwd()+'/.tools/temporal-test-server-1.14.0'}})});
  after(async()=>{if(env)await env.teardown()});
- async function exercise(fn:(h:any)=>Promise<void>,override:any={}){
+ async function exercise(fn:(h:any)=>Promise<void>,override:any={},activities:any={}){
   const taskQueue='test-'+randomUUID();
-  const worker=await Worker.create({connection:env.nativeConnection,taskQueue,workflowsPath:require.resolve('../../src/workflows/onboarding'),activities:{}});
+  const worker=await Worker.create({connection:env.nativeConnection,taskQueue,workflowsPath:require.resolve('../../src/workflows/onboarding'),activities});
   const running=worker.run();let h:any;try{h=await env.workflowClient.start(onboarding,{workflowId:randomUUID(),taskQueue,args:[{...input,...override}]});await h.query(snapshot);await fn(h)}finally{if(h)try{await h.terminate()}catch{}worker.shutdown();await running}
  }
  it('queries pending state and records a durable rejection receipt',async()=>exercise(async h=>{
@@ -27,4 +27,10 @@ describe('real Temporal workflow',function(){
   await env.sleep(11000);const s=await h.query(snapshot);assert.equal(s.status,'pending');assert.equal(s.reminded,true);
   assert.equal(s.audit.filter((x:any)=>x.event==='review_reminder').length,1);
  }));
+ it('reserves then activates after the final approval',async()=>{
+  const effects:string[]=[];
+  await exercise(async h=>{await h.signal(decide,{id:'approve-1',stage:'security',actor:reviewer,choice:'approve',note:'Verified',revision:0});
+   const s=await h.result();assert.equal(s.status,'approved');assert.equal(s.reserved,true);assert.equal(s.activated,true);assert.deepEqual(effects,['reserve','activate']);
+  },{}, {reserve:async()=>{effects.push('reserve')},activate:async()=>{effects.push('activate')}});
+ });
 });
