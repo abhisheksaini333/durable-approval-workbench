@@ -17,8 +17,16 @@ export async function onboarding(input:OnboardingInput){
  await condition(()=>state.status!=='pending',Math.max(1,state.deadline-Date.now()));
  state=expire(state,Date.now());
  if(state.status==='provisioning'){
-  await effects.reserve(state.request);state.reserved=true;appendAudit(state,'capacity_reserved',Date.now());
-  await effects.activate(state.request);state.activated=true;state.status='approved';state.revision++;appendAudit(state,'service_activated',Date.now());
+  let reserveAttempted=false,activateAttempted=false;
+  try{
+   reserveAttempted=true;await effects.reserve(state.request);state.reserved=true;appendAudit(state,'capacity_reserved',Date.now());
+   activateAttempted=true;await effects.activate(state.request);state.activated=true;state.status='approved';state.revision++;appendAudit(state,'service_activated',Date.now());
+  }catch{
+   let incomplete=false;
+   if(activateAttempted){try{await effects.deactivate(state.request);state.activated=false;appendAudit(state,'service_deactivated',Date.now())}catch{incomplete=true;appendAudit(state,'deactivation_failed',Date.now())}}
+   if(reserveAttempted){try{await effects.release(state.request);state.reserved=false;appendAudit(state,'capacity_released',Date.now())}catch{incomplete=true;appendAudit(state,'release_failed',Date.now())}}
+   state.status=incomplete?'compensation_failed':'failed';state.errorCode=incomplete?'manual_recovery_required':'provisioning_failed';state.revision++;appendAudit(state,state.status,Date.now());
+  }
  }
  return publicSnapshot(state);
 }

@@ -2,6 +2,7 @@ import {strict as assert} from 'assert';
 import {randomUUID} from 'crypto';
 import {TestWorkflowEnvironment} from '@temporalio/testing';
 import {Worker} from '@temporalio/worker';
+import {ApplicationFailure} from '@temporalio/common';
 import {onboarding, snapshot, decide, cancel} from '../../src/workflows/onboarding';
 const policy={stages:['security'],approvalTimeoutMs:20000,reminderAfterMs:10000};
 const input={request:{customer:'Acme',plan:'standard',seats:3},metadata:{requestId:'req-1',tenantId:'acme',requesterId:'requester'},policy};
@@ -32,5 +33,11 @@ describe('real Temporal workflow',function(){
   await exercise(async h=>{await h.signal(decide,{id:'approve-1',stage:'security',actor:reviewer,choice:'approve',note:'Verified',revision:0});
    const s=await h.result();assert.equal(s.status,'approved');assert.equal(s.reserved,true);assert.equal(s.activated,true);assert.deepEqual(effects,['reserve','activate']);
   },{}, {reserve:async()=>{effects.push('reserve')},activate:async()=>{effects.push('activate')}});
+ });
+ it('compensates attempted effects in reverse order',async()=>{
+  const effects:string[]=[];
+  await exercise(async h=>{await h.signal(decide,{id:'approve-2',stage:'security',actor:reviewer,choice:'approve',note:'',revision:0});
+   let failed=false,result:any;try{result=await h.result()}catch{failed=true}assert.equal(failed,false);assert.equal(result.status,'failed');assert.deepEqual(effects,['reserve','activate','deactivate','release']);
+  },{}, {reserve:async()=>{effects.push('reserve')},activate:async()=>{effects.push('activate');throw ApplicationFailure.nonRetryable('declined','ProviderRejected')},deactivate:async()=>{effects.push('deactivate')},release:async()=>{effects.push('release')}});
  });
 });
