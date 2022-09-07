@@ -20,12 +20,13 @@ export async function onboarding(input:OnboardingInput){
   let reserveAttempted=false,activateAttempted=false;
   try{
    reserveAttempted=true;await effects.reserve(state.request);state.reserved=true;appendAudit(state,'capacity_reserved',Date.now());
-   activateAttempted=true;await effects.activate(state.request);state.activated=true;state.status='approved';state.revision++;appendAudit(state,'service_activated',Date.now());
+   if(state.cancellationRequested)throw new Error('cancelled');
+   activateAttempted=true;await effects.activate(state.request);state.activated=true;if(state.cancellationRequested)throw new Error('cancelled');state.status='approved';state.revision++;appendAudit(state,'service_activated',Date.now());
   }catch{
    let incomplete=false;
    if(activateAttempted){try{await effects.deactivate(state.request);state.activated=false;appendAudit(state,'service_deactivated',Date.now())}catch{incomplete=true;appendAudit(state,'deactivation_failed',Date.now())}}
    if(reserveAttempted){try{await effects.release(state.request);state.reserved=false;appendAudit(state,'capacity_released',Date.now())}catch{incomplete=true;appendAudit(state,'release_failed',Date.now())}}
-   state.status=incomplete?'compensation_failed':'failed';state.errorCode=incomplete?'manual_recovery_required':'provisioning_failed';state.revision++;appendAudit(state,state.status,Date.now());
+   state.status=incomplete?'compensation_failed':state.cancellationRequested?'cancelled':'failed';state.errorCode=incomplete?'manual_recovery_required':state.cancellationRequested?undefined:'provisioning_failed';state.revision++;appendAudit(state,state.status,Date.now());
   }
  }
  return publicSnapshot(state);

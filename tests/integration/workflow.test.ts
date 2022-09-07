@@ -40,4 +40,11 @@ describe('real Temporal workflow',function(){
    let failed=false,result:any;try{result=await h.result()}catch{failed=true}assert.equal(failed,false);assert.equal(result.status,'failed');assert.deepEqual(effects,['reserve','activate','deactivate','release']);
   },{}, {reserve:async()=>{effects.push('reserve')},activate:async()=>{effects.push('activate');throw ApplicationFailure.nonRetryable('declined','ProviderRejected')},deactivate:async()=>{effects.push('deactivate')},release:async()=>{effects.push('release')}});
  });
+ it('cancels in-flight provisioning and compensates the reservation',async()=>{
+  const effects:string[]=[];let entered:()=>void=()=>{};const started=new Promise<void>(r=>entered=r);let unblock:()=>void=()=>{};const gate=new Promise<void>(r=>unblock=r);
+  await exercise(async h=>{await h.signal(decide,{id:'approve-3',stage:'security',actor:reviewer,choice:'approve',note:'',revision:0});await started;
+   await h.signal(cancel,{id:'requester',tenantId:'acme',roles:['requester']});assert.equal((await h.query(snapshot)).status,'cancelling');unblock();
+   const s=await h.result();assert.equal(s.status,'cancelled');assert.deepEqual(effects,['reserve','release']);
+  },{}, {reserve:async()=>{effects.push('reserve');entered();await gate},activate:async()=>{effects.push('activate')},release:async()=>{effects.push('release')}});
+ });
 });
