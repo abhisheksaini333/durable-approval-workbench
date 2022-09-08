@@ -15,4 +15,13 @@ export async function migrate(pool:Pool){await transaction(pool,async client=>{
 })}
 export interface RequestRecord {id:string;workflowId:string;tenantId:string;requesterId:string;input:RequestInput;createdAt:string;startedAt:string|null;}
 function mapRow(r:any):RequestRecord{return {id:r.id,workflowId:r.workflow_id,tenantId:r.tenant_id,requesterId:r.requester_id,input:r.input,createdAt:r.created_at.toISOString(),startedAt:r.started_at?.toISOString()||null}}
-export class Registry {constructor(readonly pool:Pool){} }
+export class Registry {constructor(readonly pool:Pool){}
+ async admit(value:Actor,key:string,payload:unknown):Promise<RequestRecord>{
+  const actor=parseActor(value),input=parseRequest(payload),workflowId=workflowIdentity(actor.tenantId,actor.id,key);
+  return transaction(this.pool,async client=>{
+   await client.query('INSERT INTO approval_requests(id,workflow_id,tenant_id,requester_id,idempotency_key,input) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT DO NOTHING',[randomUUID(),workflowId,actor.tenantId,actor.id,key,input]);
+   const r=await client.query('SELECT * FROM approval_requests WHERE workflow_id=$1',[workflowId]);
+   return mapRow(r.rows[0]);
+  });
+ }
+}
