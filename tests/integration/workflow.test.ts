@@ -47,4 +47,8 @@ describe('real Temporal workflow',function(){
    const s=await h.result();assert.equal(s.status,'cancelled');assert.deepEqual(effects,['reserve','release']);
   },{}, {reserve:async()=>{effects.push('reserve');entered();await gate},activate:async()=>{effects.push('activate')},release:async()=>{effects.push('release')}});
  });
+ it('reports incomplete compensation for operator recovery',async()=>{
+  await exercise(async h=>{await h.signal(decide,{id:'approve-4',stage:'security',actor:reviewer,choice:'approve',note:'',revision:0});const s=await h.result();assert.equal(s.status,'compensation_failed');assert.equal(s.errorCode,'manual_recovery_required');assert.equal(s.reserved,true);
+  },{}, {reserve:async()=>{},activate:async()=>{throw ApplicationFailure.nonRetryable('declined','ProviderRejected')},deactivate:async()=>{},release:async()=>{throw ApplicationFailure.nonRetryable('unavailable','ProviderRejected')}});
+ });
 });
