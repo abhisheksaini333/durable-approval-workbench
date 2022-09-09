@@ -21,7 +21,8 @@ export class Registry {constructor(readonly pool:Pool){}
   return transaction(this.pool,async client=>{
    await client.query('INSERT INTO approval_requests(id,workflow_id,tenant_id,requester_id,idempotency_key,input) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT DO NOTHING',[randomUUID(),workflowId,actor.tenantId,actor.id,key,input]);
    const r=await client.query('SELECT * FROM approval_requests WHERE workflow_id=$1',[workflowId]);
-   return mapRow(r.rows[0]);
+   const existing=mapRow(r.rows[0]);if(existing.input.customer!==input.customer||existing.input.plan!==input.plan||existing.input.seats!==input.seats)throw new DomainError('idempotency_conflict','This request key already belongs to different input',409);
+   return existing;
   });
  }
 }
