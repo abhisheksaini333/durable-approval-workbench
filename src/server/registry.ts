@@ -25,4 +25,9 @@ export class Registry {constructor(readonly pool:Pool){}
    return existing;
   });
  }
+ async get(value:Actor,id:string):Promise<RequestRecord>{
+  const actor=parseActor(value);identifier(id,'request');const all=actor.roles.some(r=>r==='operator'||r.endsWith('-reviewer'));
+  const result=await this.pool.query('SELECT * FROM approval_requests WHERE id=$1 AND tenant_id=$2 AND ($3::boolean OR requester_id=$4)',[id,actor.tenantId,all,actor.id]);
+  if(!result.rowCount)throw new DomainError('not_found','Request not found',404);return mapRow(result.rows[0]);
+ }
 }
