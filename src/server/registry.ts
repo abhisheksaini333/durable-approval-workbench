@@ -38,4 +38,5 @@ export class Registry {constructor(readonly pool:Pool){}
   const result=await this.pool.query(`SELECT *,to_char(created_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS cursor_time FROM approval_requests WHERE tenant_id=$1 AND ($2::boolean OR requester_id=$3) AND ($4::timestamptz IS NULL OR (created_at,id)<($4::timestamptz,$5::uuid)) ORDER BY created_at DESC,id DESC LIMIT $6`,[actor.tenantId,all,actor.id,before,id,limit+1]);
   const rows=result.rows.slice(0,limit),last=rows[rows.length-1];return {items:rows.map(mapRow),nextCursor:result.rows.length>limit?Buffer.from(JSON.stringify([last.cursor_time,last.id])).toString('base64url'):null};
  }
+ async markStarted(id:string):Promise<void>{await this.pool.query('UPDATE approval_requests SET started_at=COALESCE(started_at,clock_timestamp()) WHERE id=$1',[id])}
 }
