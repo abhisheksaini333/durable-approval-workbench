@@ -14,4 +14,9 @@ describe('OIDC authentication',()=>{
   await assert.rejects(async()=>authenticateToken('Bearer '+await token({},'https://evil.example'),keys,config),(e:any)=>e.status===401);
   await assert.rejects(async()=>authenticateToken('Bearer '+await token({},undefined,'other-service'),keys,config),(e:any)=>e.status===401);
  });
+ it('requires expiry and rejects malformed authority claims',async()=>{
+  const noExpiry=await new SignJWT({tenant_id:'acme',realm_access:{roles:['operator']}}).setProtectedHeader({alg:'RS256',kid:'demo'}).setSubject('owner').setIssuedAt().setIssuer(config.issuer).setAudience(config.audience).sign(privateKey);
+  await assert.rejects(()=>authenticateToken('Bearer '+noExpiry,keys,config),(e:any)=>e.status===401);
+  for(const claims of [{tenant_id:'../other'},{realm_access:{roles:'operator'}},{tenant_id:null}])await assert.rejects(async()=>authenticateToken('Bearer '+await token(claims),keys,config),(e:any)=>e.status===401);
+ });
 });
