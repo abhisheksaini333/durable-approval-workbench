@@ -19,4 +19,9 @@ describe('OIDC authentication',()=>{
   await assert.rejects(()=>authenticateToken('Bearer '+noExpiry,keys,config),(e:any)=>e.status===401);
   for(const claims of [{tenant_id:'../other'},{realm_access:{roles:'operator'}},{tenant_id:null}])await assert.rejects(async()=>authenticateToken('Bearer '+await token(claims),keys,config),(e:any)=>e.status===401);
  });
+ it('rejects expired and tampered tokens',async()=>{
+  const expired=await new SignJWT({tenant_id:'acme',realm_access:{roles:['requester']}}).setProtectedHeader({alg:'RS256',kid:'demo'}).setSubject('owner').setIssuedAt(Math.floor(Date.now()/1000)-1000).setExpirationTime(Math.floor(Date.now()/1000)-100).setIssuer(config.issuer).setAudience(config.audience).sign(privateKey);
+  await assert.rejects(()=>authenticateToken('Bearer '+expired,keys,config),(e:any)=>e.status===401);
+  const valid=await token(),parts=valid.split('.');parts[1]=Buffer.from(JSON.stringify({sub:'admin',tenant_id:'acme',realm_access:{roles:['operator']}})).toString('base64url');await assert.rejects(()=>authenticateToken('Bearer '+parts.join('.'),keys,config),(e:any)=>e.status===401);
+ });
 });
