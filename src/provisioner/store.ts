@@ -18,8 +18,11 @@ export class EffectStore {constructor(readonly pool:Pool){}
   const {rows}=await client.query('SELECT * FROM provider_resources WHERE request_id=$1 FOR UPDATE',[input.requestId]),resource=rows[0];
   const stored=parseEffect(resource.input);if(JSON.stringify(stored)!==JSON.stringify(input))throw new DomainError('effect_conflict','Resource identity belongs to a different input',409);
   const prior=await client.query('SELECT 1 FROM provider_receipts WHERE request_id=$1 AND operation=$2',[input.requestId,operation]);if(prior.rowCount)return {operation,replayed:true};
+  if((operation==='reserve'||operation==='activate')&&(resource.released||resource.deactivated))throw new DomainError('compensated','Resource has already been compensated',409);
   if(operation==='reserve')await client.query('UPDATE provider_resources SET reserved=true WHERE request_id=$1',[input.requestId]);
   else if(operation==='activate'){if(!resource.reserved)throw new DomainError('not_reserved','Capacity must be reserved first',409);await client.query('UPDATE provider_resources SET activated=true WHERE request_id=$1',[input.requestId])}
+  else if(operation==='deactivate')await client.query('UPDATE provider_resources SET activated=false,deactivated=true WHERE request_id=$1',[input.requestId]);
+  else if(operation==='release'){if(resource.activated)throw new DomainError('still_active','Deactivate before releasing capacity',409);await client.query('UPDATE provider_resources SET reserved=false,released=true WHERE request_id=$1',[input.requestId])}
   else throw new DomainError('invalid_operation','Operation not implemented');
   await client.query('INSERT INTO provider_receipts(request_id,operation) VALUES($1,$2)',[input.requestId,operation]);return {operation,replayed:false};
  })}
