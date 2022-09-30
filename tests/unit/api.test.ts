@@ -1,0 +1,17 @@
+import {strict as assert} from 'assert';
+import request from 'supertest';
+import {createApp} from '../../src/server/app';
+import {DomainError} from '../../src/domain';
+const actor={id:'owner',tenantId:'acme',roles:['requester']};
+const config={origin:'http://localhost:4900',issuer:'http://localhost:4901/realms/switchboard',clientId:'switchboard',policy:{stages:['security','commercial'],approvalTimeoutMs:600000,reminderAfterMs:300000}};
+const record={id:'req-1',workflowId:'flow-1',tenantId:'acme',requesterId:'owner',input:{customer:'Acme',plan:'standard',seats:3},createdAt:'2022-08-01T09:00:00Z',startedAt:null};
+function fixture(overrides:any={}){
+ const events:any[]=[];let identity:any=actor;
+ const registry:any={pool:{query:async()=>({rows:[{ok:1}]})},admit:async(a:any,k:any,p:any)=>{events.push(['admit',a,k,p]);return record},markStarted:async()=>events.push(['started']),get:async()=>record,list:async()=>({items:[record],nextCursor:null})};
+ const workflows:any={ready:async()=>{},start:async()=>events.push(['start']),query:async()=>({status:'pending',stage:'security',revision:0,receipts:[]}),decide:async(r:any,d:any)=>events.push(['decide',d]),cancel:async(r:any,a:any)=>events.push(['cancel',a])};
+ const app=createApp({registry,workflows,config,authenticate:async(h:any)=>{if(!h)throw new DomainError('unauthorized','Sign in',401);return identity},...overrides});
+ return {app,events,registry,workflows,setIdentity:(a:any)=>identity=a};
+}
+describe('approval HTTP API',()=>{
+ it('separates health from dependency readiness',async()=>{const f=fixture();await request(f.app).get('/health').expect(200);await request(f.app).get('/ready').expect(200);f.workflows.ready=async()=>{throw new Error('internal address')};const r=await request(f.app).get('/ready').expect(503);assert.equal(JSON.stringify(r.body).includes('internal address'),false)});
+});
