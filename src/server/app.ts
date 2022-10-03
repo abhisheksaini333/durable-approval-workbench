@@ -15,6 +15,10 @@ export function createApp(deps:Dependencies){
  app.use('/api',(q,r,next)=>{deps.authenticate(q.get('authorization')).then(actor=>{r.locals.actor=actor;next()},next)});
  app.use(express.json({limit:'16kb'}));
  app.get('/api/session',(_q,r)=>r.json({actor:r.locals.actor}));
+ app.post('/api/requests',route(async(q,r)=>{
+  const actor=r.locals.actor as Actor;requireRole(actor,['requester']);const key=identifier(q.get('idempotency-key'),'idempotency key'),input=parseRequest(q.body);
+  const entry=await registry.admit(actor,key,input);await workflows.start(entry,config.policy);await registry.markStarted(entry.id);r.status(202).location('/api/requests/'+entry.id).json({id:entry.id,status:'submitted'});
+ }));
  /* ROUTES */
  app.use((_q,_r,next)=>next(new DomainError('not_found','Resource not found',404)));
  app.use((error:any,_q:express.Request,r:express.Response,_next:express.NextFunction)=>{
