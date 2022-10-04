@@ -24,6 +24,7 @@ export function createApp(deps:Dependencies){
   const actor=r.locals.actor as Actor;const body=objectRecord(q.body,['id','stage','choice','note','revision']);const command=parseDecision({...body,actor});requireRole(actor,[command.stage+'-reviewer']);
   const entry=await registry.get(actor,q.params.id);await workflows.decide(entry,command);r.status(202).json({decisionId:command.id,status:'submitted'});
  }));
+ app.post('/api/requests/:id/cancel',route(async(q,r)=>{objectRecord(q.body,[]);const actor=r.locals.actor as Actor,entry=await registry.get(actor,q.params.id);if(entry.requesterId!==actor.id&&!actor.roles.includes('operator'))throw new DomainError('forbidden','Only the requester or an operator can cancel',403);await workflows.cancel(entry,actor);r.status(202).json({status:'submitted'})}));
  /* ROUTES */
  app.use((_q,_r,next)=>next(new DomainError('not_found','Resource not found',404)));
  app.use((error:any,_q:express.Request,r:express.Response,_next:express.NextFunction)=>{
