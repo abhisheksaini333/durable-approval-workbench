@@ -20,6 +20,10 @@ export function createApp(deps:Dependencies){
   const entry=await registry.admit(actor,key,input);await workflows.start(entry,config.policy);await registry.markStarted(entry.id);r.status(202).location('/api/requests/'+entry.id).json({id:entry.id,status:'submitted'});
  }));
  app.get('/api/requests/:id',route(async(q,r)=>{const entry=await registry.get(r.locals.actor,q.params.id);r.json(await workflows.query(entry))}));
+ app.post('/api/requests/:id/decisions',route(async(q,r)=>{
+  const actor=r.locals.actor as Actor;const body=objectRecord(q.body,['id','stage','choice','note','revision']);const command=parseDecision({...body,actor});requireRole(actor,[command.stage+'-reviewer']);
+  const entry=await registry.get(actor,q.params.id);await workflows.decide(entry,command);r.status(202).json({decisionId:command.id,status:'submitted'});
+ }));
  /* ROUTES */
  app.use((_q,_r,next)=>next(new DomainError('not_found','Resource not found',404)));
  app.use((error:any,_q:express.Request,r:express.Response,_next:express.NextFunction)=>{
