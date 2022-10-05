@@ -25,6 +25,12 @@ export function createApp(deps:Dependencies){
   const entry=await registry.get(actor,q.params.id);await workflows.decide(entry,command);r.status(202).json({decisionId:command.id,status:'submitted'});
  }));
  app.post('/api/requests/:id/cancel',route(async(q,r)=>{objectRecord(q.body,[]);const actor=r.locals.actor as Actor,entry=await registry.get(actor,q.params.id);if(entry.requesterId!==actor.id&&!actor.roles.includes('operator'))throw new DomainError('forbidden','Only the requester or an operator can cancel',403);await workflows.cancel(entry,actor);r.status(202).json({status:'submitted'})}));
+ app.get('/api/requests',route(async(q,r)=>{
+  const params=objectRecord(q.query,['limit','cursor']);if((params.limit!==undefined&&typeof params.limit!=='string')||(params.cursor!==undefined&&typeof params.cursor!=='string'))throw new DomainError('invalid_query','Invalid page parameters');
+  const page=await registry.list(r.locals.actor,params.limit===undefined?20:Number(params.limit),params.cursor as string|undefined);
+  const items=[];for(let i=0;i<page.items.length;i+=4){items.push(...await Promise.all(page.items.slice(i,i+4).map(async entry=>{try{return {...entry,snapshot:await workflows.query(entry),stateUnavailable:false}}catch{return {...entry,snapshot:null,stateUnavailable:true}}})))}
+  r.json({items,nextCursor:page.nextCursor});
+ }));
  /* ROUTES */
  app.use((_q,_r,next)=>next(new DomainError('not_found','Resource not found',404)));
  app.use((error:any,_q:express.Request,r:express.Response,_next:express.NextFunction)=>{
