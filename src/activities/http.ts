@@ -9,7 +9,10 @@ export async function callProvider(base:string,token:string,operation:string,inp
   const req=send(target,{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json','content-length':Buffer.byteLength(payload)}},res=>{
    let body='';res.setEncoding('utf8');res.on('data',chunk=>{body+=chunk});res.on('end',()=>{cleanup();if(res.statusCode!==200){reject(ApplicationFailure.retryable('Provider operation failed','ProviderUnavailable'));return}try{const receipt=JSON.parse(body);if(receipt.operation!==operation||typeof receipt.replayed!=='boolean')throw new Error();resolve()}catch{reject(ApplicationFailure.retryable('Invalid provider receipt','ProviderUnavailable'))}});
   });
-  const cleanup=()=>{};
+  const timer=setTimeout(()=>req.destroy(new Error('deadline exceeded')),timeoutMs);
+  const abort=()=>req.destroy(new Error('cancelled'));
+  signal?.addEventListener('abort',abort,{once:true});if(signal?.aborted)abort();
+  const cleanup=()=>{clearTimeout(timer);signal?.removeEventListener('abort',abort)};
   req.on('error',()=>{cleanup();reject(ApplicationFailure.retryable('Provider connection failed','ProviderUnavailable'))});req.end(payload);
  });
 }
