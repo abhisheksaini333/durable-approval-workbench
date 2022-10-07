@@ -7,7 +7,7 @@ export async function callProvider(base:string,token:string,operation:string,inp
  return new Promise((resolve,reject)=>{
   const send=target.protocol==='https:'?httpsRequest:httpRequest;
   const req=send(target,{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json','content-length':Buffer.byteLength(payload)}},res=>{
-   let body='';res.setEncoding('utf8');res.on('data',chunk=>{body+=chunk});res.on('end',()=>{cleanup();if(res.statusCode!==200){reject(ApplicationFailure.retryable('Provider operation failed','ProviderUnavailable'));return}try{const receipt=JSON.parse(body);if(receipt.operation!==operation||typeof receipt.replayed!=='boolean')throw new Error();resolve()}catch{reject(ApplicationFailure.retryable('Invalid provider receipt','ProviderUnavailable'))}});
+   let body='';res.setEncoding('utf8');res.on('data',chunk=>{body+=chunk});res.on('end',()=>{cleanup();if(res.statusCode!==200){const permanent=!!res.statusCode&&res.statusCode>=400&&res.statusCode<500&&res.statusCode!==408&&res.statusCode!==429;reject(new ApplicationFailure('Provider operation failed',permanent?'ProviderRejected':'ProviderUnavailable',permanent));return}try{const receipt=JSON.parse(body);if(receipt.operation!==operation||typeof receipt.replayed!=='boolean')throw new Error();resolve()}catch{reject(ApplicationFailure.retryable('Invalid provider receipt','ProviderUnavailable'))}});
   });
   const timer=setTimeout(()=>req.destroy(new Error('deadline exceeded')),timeoutMs);
   const abort=()=>req.destroy(new Error('cancelled'));
