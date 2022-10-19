@@ -9,6 +9,13 @@ const route=(fn:(q:express.Request,r:express.Response)=>Promise<any>):express.Re
 export function createApp(deps:Dependencies){
  const {registry,workflows,config}=deps;const app=express();app.disable('x-powered-by');
  app.use((_q,r,next)=>{r.locals.traceId=randomUUID();r.setHeader('X-Request-Id',r.locals.traceId);next()});
+ app.use((q,r,next)=>{
+  const allowed=new Set([new URL(config.origin).hostname,'localhost','127.0.0.1','[::1]']);
+  if(!allowed.has(q.hostname)){next(new DomainError('invalid_host','Unexpected request host'));return}
+  if(q.get('origin')&&q.get('origin')!==config.origin){next(new DomainError('forbidden_origin','Request origin is not allowed',403));return}
+  r.setHeader('X-Content-Type-Options','nosniff');r.setHeader('Referrer-Policy','no-referrer');r.setHeader('Cache-Control','no-store');r.setHeader('X-Frame-Options','DENY');
+  const identityOrigin=new URL(config.issuer).origin;r.setHeader('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' "+identityOrigin+"; frame-src "+identityOrigin+"; object-src 'none'; base-uri 'self'; frame-ancestors 'none'");next();
+ });
  app.get('/health',(_q,r)=>r.json({status:'ok'}));
  app.get('/ready',route(async(_q,r)=>{try{await Promise.all([registry.pool.query('SELECT 1'),workflows.ready()]);r.json({status:'ready'})}catch{r.status(503).json({status:'unavailable'})}}));
  app.get('/config.json',(_q,r)=>r.json({issuer:config.issuer,clientId:config.clientId}));
