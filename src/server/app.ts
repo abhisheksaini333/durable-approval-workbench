@@ -4,7 +4,7 @@ import {Actor,Decision,Policy,DomainError,identifier,parseRequest,parseDecision,
 import {Registry,RequestRecord} from './registry';
 export interface Workflows {ready():Promise<void>;start(record:RequestRecord,policy:Policy):Promise<void>;query(record:RequestRecord):Promise<any>;decide(record:RequestRecord,decision:Decision):Promise<void>;cancel(record:RequestRecord,actor:Actor):Promise<void>;}
 export interface AppConfig {origin:string;issuer:string;clientId:string;policy:Policy;}
-export interface Dependencies {registry:Registry;workflows:Workflows;config:AppConfig;authenticate:(header:unknown)=>Promise<Actor>;}
+export interface Dependencies {mutationBudget?:number;now?:()=>number;registry:Registry;workflows:Workflows;config:AppConfig;authenticate:(header:unknown)=>Promise<Actor>;}
 const route=(fn:(q:express.Request,r:express.Response)=>Promise<any>):express.RequestHandler=>(q,r,next)=>{Promise.resolve(fn(q,r)).catch(next)};
 export function createApp(deps:Dependencies){
  const {registry,workflows,config}=deps;const app=express();app.disable('x-powered-by');
@@ -20,6 +20,14 @@ export function createApp(deps:Dependencies){
  app.get('/ready',route(async(_q,r)=>{try{await Promise.all([registry.pool.query('SELECT 1'),workflows.ready()]);r.json({status:'ready'})}catch{r.status(503).json({status:'unavailable'})}}));
  app.get('/config.json',(_q,r)=>r.json({issuer:config.issuer,clientId:config.clientId}));
  app.use('/api',(q,r,next)=>{deps.authenticate(q.get('authorization')).then(actor=>{r.locals.actor=actor;next()},next)});
+ const mutationWindows=new Map<string,{start:number;count:number}>();
+ app.use('/api',(q,r,next)=>{
+  if(q.method==='GET'||q.method==='HEAD'){next();return}
+  const now=(deps.now||Date.now)();for(const [key,value] of mutationWindows)if(now-value.start>=60000)mutationWindows.delete(key);
+  const actor=r.locals.actor as Actor,key=actor.tenantId+':'+actor.id;let window=mutationWindows.get(key);
+  if(!window){if(mutationWindows.size>=1000){next(new DomainError('busy','Please retry shortly',503));return}window={start:now,count:0};mutationWindows.set(key,window)}
+  if(++window.count>(deps.mutationBudget||30)){r.setHeader('Retry-After',String(Math.max(1,Math.ceil((60000-now+window.start)/1000))));next(new DomainError('rate_limited','Too many changes; retry shortly',429));return}next();
+ });
  app.use(express.json({limit:'16kb'}));
  app.get('/api/session',(_q,r)=>r.json({actor:r.locals.actor}));
  app.post('/api/requests',route(async(q,r)=>{
