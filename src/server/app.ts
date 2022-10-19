@@ -7,8 +7,9 @@ export interface AppConfig {origin:string;issuer:string;clientId:string;policy:P
 export interface Dependencies {mutationBudget?:number;now?:()=>number;registry:Registry;workflows:Workflows;config:AppConfig;authenticate:(header:unknown)=>Promise<Actor>;}
 const route=(fn:(q:express.Request,r:express.Response)=>Promise<any>):express.RequestHandler=>(q,r,next)=>{Promise.resolve(fn(q,r)).catch(next)};
 export function createApp(deps:Dependencies){
+ const responses:Record<string,number>={};
  const {registry,workflows,config}=deps;const app=express();app.disable('x-powered-by');
- app.use((_q,r,next)=>{r.locals.traceId=randomUUID();r.setHeader('X-Request-Id',r.locals.traceId);next()});
+ app.use((_q,r,next)=>{r.on('finish',()=>{const key=String(Math.floor(r.statusCode/100))+'xx';responses[key]=(responses[key]||0)+1});r.locals.traceId=randomUUID();r.setHeader('X-Request-Id',r.locals.traceId);next()});
  app.use((q,r,next)=>{
   const allowed=new Set([new URL(config.origin).hostname,'localhost','127.0.0.1','[::1]']);
   if(!allowed.has(q.hostname)){next(new DomainError('invalid_host','Unexpected request host'));return}
@@ -46,6 +47,7 @@ export function createApp(deps:Dependencies){
   const items=[];for(let i=0;i<page.items.length;i+=4){items.push(...await Promise.all(page.items.slice(i,i+4).map(async entry=>{try{return {...entry,snapshot:await workflows.query(entry),stateUnavailable:false}}catch{return {...entry,snapshot:null,stateUnavailable:true}}})))}
   r.json({items,nextCursor:page.nextCursor});
  }));
+ app.get('/api/metrics',route(async(_q,r)=>{requireRole(r.locals.actor,['operator']);r.json({httpResponses:{...responses},uptimeSeconds:Math.floor(process.uptime())})}));
  /* ROUTES */
  app.use((_q,_r,next)=>next(new DomainError('not_found','Resource not found',404)));
  app.use((error:any,_q:express.Request,r:express.Response,_next:express.NextFunction)=>{
