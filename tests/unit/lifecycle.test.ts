@@ -1,0 +1,4 @@
+import {strict as assert} from 'assert';
+import {createServer,get} from 'http';
+import {gracefulServer} from '../../src/server/lifecycle';
+it('drains active HTTP work before closing dependencies',async()=>{let cleanup=0,entered:()=>void=()=>{};const started=new Promise<void>(r=>entered=r);const server=createServer((_q,r)=>{entered();setTimeout(()=>r.end('complete'),30)});const stop=gracefulServer(server,async()=>{cleanup++});await new Promise<void>(r=>server.listen(0,'127.0.0.1',r));const response=new Promise<string>((resolve,reject)=>{get('http://127.0.0.1:'+(server.address() as any).port,r=>{let b='';r.on('data',c=>b+=c);r.on('end',()=>resolve(b))}).on('error',reject)});await started;const drain=stop();assert.equal(await response,'complete');await drain;await stop();assert.equal(cleanup,1)});
