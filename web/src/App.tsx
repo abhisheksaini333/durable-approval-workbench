@@ -1,0 +1,2 @@
+import React from 'react';
+export function App(){return <main className="welcome"><div className="wordmark">S<span>↗</span> SWITCHBOARD</div><p className="eyebrow">CUSTOMER ONBOARDING</p><h1>Every approval,<br/><em>accounted for.</em></h1><p className="lede">Review customer requests, follow every decision, and keep onboarding moving.</p><button className="primary" disabled>Connecting workspace…</button><div className="welcome-line"><span>01 · REQUEST</span><span>02 · REVIEW</span><span>03 · ACTIVATE</span></div></main>}
