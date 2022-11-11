@@ -1,5 +1,7 @@
 import express from 'express';
 import {randomUUID} from 'crypto';
+import {resolve} from 'path';
+import {existsSync} from 'fs';
 import {Actor,Decision,Policy,DomainError,identifier,parseRequest,parseDecision,record as objectRecord} from '../domain';
 import {Registry,RequestRecord} from './registry';
 export interface Workflows {ready():Promise<void>;start(record:RequestRecord,policy:Policy):Promise<void>;query(record:RequestRecord):Promise<any>;decide(record:RequestRecord,decision:Decision):Promise<void>;cancel(record:RequestRecord,actor:Actor):Promise<void>;}
@@ -49,6 +51,7 @@ export function createApp(deps:Dependencies){
  }));
  app.get('/api/metrics',route(async(_q,r)=>{requireRole(r.locals.actor,['operator']);r.json({httpResponses:{...responses},uptimeSeconds:Math.floor(process.uptime())})}));
  /* ROUTES */
+ const browser=resolve(process.cwd(),'web/dist');if(existsSync(resolve(browser,'index.html'))){app.use('/assets',express.static(resolve(browser,'assets'),{immutable:true,maxAge:'1y'}));app.get('/',(_q,r)=>r.sendFile(resolve(browser,'index.html')));}
  app.use((_q,_r,next)=>next(new DomainError('not_found','Resource not found',404)));
  app.use((error:any,_q:express.Request,r:express.Response,_next:express.NextFunction)=>{
   const status=error instanceof DomainError?error.status:error.type==='entity.too.large'?413:error instanceof SyntaxError?400:500;
