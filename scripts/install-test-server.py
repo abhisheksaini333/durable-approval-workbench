@@ -8,7 +8,8 @@ if not osname:raise SystemExit('Supported test hosts: macOS and Linux')
 archive=tools/'temporal-test-server-1.14.0.tar.gz';target=tools/'temporal-test-server-1.14.0'
 url=f'https://github.com/temporalio/sdk-java/releases/download/v1.14.0/temporal-test-server_1.14.0_{osname}_amd64.tar.gz'
 subprocess.run(['curl','--fail','--location','--silent','--show-error',url,'--output',str(archive)],check=True)
-if osname=='macOS' and hashlib.sha256(archive.read_bytes()).hexdigest()!='27044bcef271e5f4516efb54b1b7738a6ca1cdc3a7eb864b77e6257fed12f170':raise SystemExit('Test server archive checksum mismatch')
+expected={'macOS':'27044bcef271e5f4516efb54b1b7738a6ca1cdc3a7eb864b77e6257fed12f170','linux':'28490f5a3653ef7a6a16b5713c18445607b3aa1620a8fbf3c355f222e5cce6d7'}
+if hashlib.sha256(archive.read_bytes()).hexdigest()!=expected[osname]:raise SystemExit('Test server archive checksum mismatch')
 with tarfile.open(archive) as bundle:
  members=[m for m in bundle.getmembers() if m.isfile()]
  if len(members)!=1:raise SystemExit('Unexpected test server archive layout')
