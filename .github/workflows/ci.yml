@@ -1,0 +1,42 @@
+name: Validate Switchboard
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:13.5-alpine@sha256:8048dd080d627956cc6d9f49eae706b1e71efadcca33f7b16f7a2357d9ff96ef
+        env:
+          POSTGRES_USER: switchboard
+          POSTGRES_PASSWORD: local-ci-database-password
+          POSTGRES_DB: switchboard
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U switchboard -d switchboard"
+          --health-interval 5s --health-timeout 3s --health-retries 20
+    env:
+      DATABASE_URL: postgresql://switchboard:local-ci-database-password@127.0.0.1:5432/switchboard
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 16.16.0
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: python3 scripts/install-test-server.py
+      - run: npm run build
+      - run: npm test
+      - run: npm run test:integration > integration.log 2>&1
+      - uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: integration-evidence
+          path: |
+            integration.log
+            .local/histories/*.json
+          retention-days: 7
