@@ -22,21 +22,14 @@ jobs:
     env:
       DATABASE_URL: postgresql://switchboard:local-ci-database-password@127.0.0.1:5432/switchboard
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
+      - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # v3.0.2
+      - uses: actions/setup-node@2fddd8803e2f5c9604345a0b591c3020ee971a93 # v3.4.1
         with:
           node-version: 16.16.0
-          cache: npm
       - run: npm ci --no-audit --no-fund
       - run: python3 scripts/install-test-server.py
       - run: npm run build
       - run: npm test
-      - run: npm run test:integration > integration.log 2>&1
-      - uses: actions/upload-artifact@v3
-        if: always()
-        with:
-          name: integration-evidence
-          path: |
-            integration.log
-            .local/histories/*.json
-          retention-days: 7
+      - name: Database and workflow integration
+        shell: bash
+        run: npm run test:integration 2>&1 | tee integration.log
