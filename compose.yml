@@ -41,7 +41,7 @@ services:
     environment:
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
-      JAVA_OPTS_APPEND: "-Xms128m -Xmx384m -XX:ActiveProcessorCount=2"
+      JAVA_OPTS_APPEND: "-Xms64m -Xmx256m -XX:MaxMetaspaceSize=128m -XX:ReservedCodeCacheSize=48m -XX:TieredStopAtLevel=1 -XX:ActiveProcessorCount=2"
       KC_HOSTNAME_STRICT: "false"
     ports: ["127.0.0.1:4901:8080"]
     volumes:
