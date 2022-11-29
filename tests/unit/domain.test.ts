@@ -116,3 +116,5 @@ describe('public snapshot',()=>{it('includes decision outcomes and ordered stage
 describe('query isolation',()=>{it('does not expose nested mutable workflow state',()=>{
  const s=state();const view=D.publicSnapshot(s);view.request.customer='changed';view.stages.length=0;view.audit[0].event='changed';assert.equal(s.request.customer,'Sample Labs');assert.equal(s.policy.stages.length,2);assert.equal(s.audit[0].event,'requested');
 });});
+
+describe('receipt identifier ownership',()=>{it('accepts canonical identifiers that overlap inherited object names',()=>{for(const id of ['constructor','toString','hasOwnProperty']){const s=D.applyDecision(state(),command({id}),1200);assert.equal(s.receipts[id].outcome,'accepted');assert.equal(s.revision,1);assert.deepEqual(D.applyDecision(s,command({id}),1300),s)}})});

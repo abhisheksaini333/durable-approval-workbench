@@ -93,7 +93,7 @@ export function appendAudit(s:State,event:string,now:number,actorId?:string,stag
  if(s.audit.length>100)s.audit.splice(0,s.audit.length-100);
 }
 export function applyDecision(previous:State,value:unknown,now:number):State {
- clock(now);const c=parseDecision(value),s=copy(previous),fingerprint=decisionFingerprint(c),prior=s.receipts[c.id];
+ clock(now);const c=parseDecision(value),s=copy(previous),fingerprint=decisionFingerprint(c),prior=Object.prototype.hasOwnProperty.call(s.receipts,c.id)?s.receipts[c.id]:undefined;
  if(prior){if(prior.fingerprint!==fingerprint)throw new DomainError('decision_conflict','Decision identifier already belongs to another intent',409);return s;}
  if(Object.keys(s.receipts).length>=256)throw new DomainError('receipt_capacity','Decision receipt capacity reached',429);
  const reason=decisionRejection(s,c,now);
