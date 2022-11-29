@@ -14,6 +14,7 @@ export async function migrate(pool:Pool){await transaction(pool,async client=>{
  CREATE INDEX IF NOT EXISTS approval_requests_tenant_cursor ON approval_requests(tenant_id,created_at DESC,id DESC)`);
 })}
 export interface RequestRecord {id:string;workflowId:string;tenantId:string;requesterId:string;input:RequestInput;createdAt:string;startedAt:string|null;}
+const uuidPattern=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 function mapRow(r:any):RequestRecord{return {id:r.id,workflowId:r.workflow_id,tenantId:r.tenant_id,requesterId:r.requester_id,input:r.input,createdAt:r.created_at.toISOString(),startedAt:r.started_at?.toISOString()||null}}
 export class Registry {constructor(readonly pool:Pool){}
  async admit(value:Actor,key:string,payload:unknown):Promise<RequestRecord>{
@@ -26,14 +27,14 @@ export class Registry {constructor(readonly pool:Pool){}
   });
  }
  async get(value:Actor,id:string):Promise<RequestRecord>{
-  const actor=parseActor(value);identifier(id,'request');const all=actor.roles.some(r=>r==='operator'||r.endsWith('-reviewer'));
+  const actor=parseActor(value);identifier(id,'request');if(!uuidPattern.test(id))throw new DomainError('invalid_request_id','Invalid request identifier');const all=actor.roles.some(r=>r==='operator'||r.endsWith('-reviewer'));
   const result=await this.pool.query('SELECT * FROM approval_requests WHERE id=$1 AND tenant_id=$2 AND ($3::boolean OR requester_id=$4)',[id,actor.tenantId,all,actor.id]);
   if(!result.rowCount)throw new DomainError('not_found','Request not found',404);return mapRow(result.rows[0]);
  }
  async list(value:Actor,limit=20,cursor?:string):Promise<{items:RequestRecord[];nextCursor:string|null}>{
   const actor=parseActor(value);if(!Number.isInteger(limit)||limit<1||limit>50)throw new DomainError('invalid_limit','Page size must be between 1 and 50');
   let before:string|null=null,id:string|null=null;
-  if(cursor){try{if(cursor.length>300)throw new Error();const c=JSON.parse(Buffer.from(cursor,'base64url').toString());if(!Array.isArray(c)||c.length!==2||typeof c[0]!=='string'||!Number.isFinite(Date.parse(c[0]))||typeof c[1]!=='string'||! /^[0-9a-f-]{36}$/.test(c[1]))throw new Error();before=c[0];id=c[1]}catch{throw new DomainError('invalid_cursor','Invalid page cursor')}}
+  if(cursor){try{if(cursor.length>300)throw new Error();const c=JSON.parse(Buffer.from(cursor,'base64url').toString());if(!Array.isArray(c)||c.length!==2||typeof c[0]!=='string'||!Number.isFinite(Date.parse(c[0]))||typeof c[1]!=='string'||!uuidPattern.test(c[1]))throw new Error();before=c[0];id=c[1]}catch{throw new DomainError('invalid_cursor','Invalid page cursor')}}
   const all=actor.roles.some(r=>r==='operator'||r.endsWith('-reviewer'));
   const result=await this.pool.query(`SELECT *,to_char(created_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS cursor_time FROM approval_requests WHERE tenant_id=$1 AND ($2::boolean OR requester_id=$3) AND ($4::timestamptz IS NULL OR (created_at,id)<($4::timestamptz,$5::uuid)) ORDER BY created_at DESC,id DESC LIMIT $6`,[actor.tenantId,all,actor.id,before,id,limit+1]);
   const rows=result.rows.slice(0,limit),last=rows[rows.length-1];return {items:rows.map(mapRow),nextCursor:result.rows.length>limit?Buffer.from(JSON.stringify([last.cursor_time,last.id])).toString('base64url'):null};
