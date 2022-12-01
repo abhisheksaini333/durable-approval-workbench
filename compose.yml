@@ -33,11 +33,23 @@ services:
     ports: ["127.0.0.1:4904:7233"]
     mem_limit: 1g
     cpus: 1.0
+  identity-data:
+    image: postgres:13.5-alpine@sha256:8048dd080d627956cc6d9f49eae706b1e71efadcca33f7b16f7a2357d9ff96ef
+    user: "0:0"
+    entrypoint: ["sh", "-ec"]
+    command: ["mkdir -p /identity/import /identity/h2; cp /realm-input.json /identity/import/switchboard-realm.json; chown -R 1000:0 /identity; chmod 700 /identity /identity/import /identity/h2; chmod 600 /identity/import/switchboard-realm.json"]
+    volumes:
+      - ./.local/switchboard-realm.json:/realm-input.json:ro
+      - identity-db:/identity
+    mem_limit: 32m
+    cpus: 0.25
   keycloak:
     image: quay.io/keycloak/keycloak:18.0.2@sha256:b4841a7b8401fd209bfcddf10773cdfa7c7cfde4bf7e87780663226be5587ee2
     platform: linux/amd64
     container_name: switchboard-2022-keycloak
     command: ["start-dev", "--import-realm"]
+    depends_on:
+      identity-data: {condition: service_completed_successfully}
     environment:
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
@@ -45,8 +57,7 @@ services:
       KC_HOSTNAME_STRICT: "false"
     ports: ["127.0.0.1:4901:8080"]
     volumes:
-      - ./.local/switchboard-realm.json:/opt/keycloak/data/import/switchboard-realm.json:ro
-      - identity-db:/opt/keycloak/data/h2
+      - identity-db:/opt/keycloak/data
     mem_limit: 768m
     cpus: 1.0
 volumes:
