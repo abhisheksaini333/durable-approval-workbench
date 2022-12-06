@@ -2,7 +2,7 @@ import React,{useEffect,useState} from 'react';
 import {Actor,Snapshot,api} from './api';
 import {PendingIntent,intentKey,readIntent,saveIntent} from './intent';
 export function Review({snapshot:s,actor}:{snapshot:Snapshot;actor:Actor}){
- const key=intentKey(actor.tenantId,actor.id),stored=readIntent(sessionStorage,key);
+ const key=intentKey(actor.tenantId,actor.id,s.request.requestId),stored=readIntent(sessionStorage,key);
  const [intent,setIntent]=useState<PendingIntent|null>(stored?.kind==='decision'&&stored.requestId===s.request.requestId?stored:null),[note,setNote]=useState(''),[busy,setBusy]=useState(false),[message,setMessage]=useState(''),[error,setError]=useState('');
  const allowed=s.status==='pending'&&actor.id!==s.request.requesterId&&actor.roles.includes(s.stage+'-reviewer');
  async function send(choice:'approve'|'reject'){
