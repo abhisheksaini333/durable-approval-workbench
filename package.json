@@ -15,7 +15,8 @@
     "worker": "node dist/src/worker.js",
     "provisioner": "node dist/src/provisioner/main.js",
     "test:e2e": "playwright test",
-    "test:integration": "TS_NODE_TRANSPILE_ONLY=1 mocha -r ts-node/register --timeout 120000 \"tests/integration/**/*.test.ts\""
+    "test:integration": "TS_NODE_TRANSPILE_ONLY=1 mocha -r ts-node/register --timeout 120000 \"tests/integration/**/*.test.ts\"",
+    "test:runtime": "TS_NODE_TRANSPILE_ONLY=1 mocha -r ts-node/register --timeout 90000 \"tests/runtime/**/*.test.ts\""
   },
   "dependencies": {
     "@temporalio/client": "1.0.0",
