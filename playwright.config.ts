@@ -1,0 +1,2 @@
+import {PlaywrightTestConfig} from '@playwright/test';
+const config:PlaywrightTestConfig={testDir:'./tests/browser',timeout:90000,expect:{timeout:20000},workers:1,retries:0,use:{baseURL:'http://localhost:4900',headless:true,viewport:{width:1440,height:1000},launchOptions:process.env.CHROMIUM_PATH?{executablePath:process.env.CHROMIUM_PATH}:{}},reporter:[['list'],['json',{outputFile:'artifacts/browser-results.json'}]]};export default config;
