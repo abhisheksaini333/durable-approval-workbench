@@ -12,5 +12,8 @@ describe('Temporal server and PostgreSQL recovery acceptance',function(){
  it('retries a provider outage and a lost acknowledgement without duplicate logical effects',async()=>{
   const {h,id}=await runtime.start();runtime.store.faults.set(id+':reserve',{lost:true});await runtime.stopProvider();await runtime.approve(h);await pause(1800);await runtime.startProvider();const result=await h.result();assert.equal(result.status,'approved');assert.ok(runtime.store.calls.filter(x=>x.requestId===id&&x.operation==='reserve').length>=2);assert.equal((await runtime.pool.query('SELECT * FROM provider_receipts WHERE request_id=$1',[id])).rowCount,2);await runtime.stopProvider();await runtime.startProvider();assert.equal((await runtime.store.inspect(id)).activated,true);
  });
+ it('cancels an in-flight real provider request and reverses the persisted reservation',async()=>{
+  const {h,id}=await runtime.start();let enter!:()=>void,release!:()=>void;const entered=new Promise<void>(r=>enter=r),block=new Promise<void>(r=>release=r);runtime.store.faults.set(id+':reserve',{block,entered:enter});await runtime.approve(h);await entered;await h.signal('cancel',{id:'requester',tenantId:'runtime',roles:['requester']});assert.equal((await h.query('snapshot')).status,'cancelling');release();const result=await h.result();assert.equal(result.status,'cancelled');assert.deepEqual(runtime.store.calls.filter(x=>x.requestId===id).map(x=>x.operation),['reserve','release']);const resource=await runtime.store.inspect(id);assert.equal(resource.reserved,false);assert.equal(resource.activated,false);assert.equal(resource.released,true);
+ });
  /* CASES */
 });
