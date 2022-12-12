@@ -18,5 +18,9 @@ describe('Temporal server and PostgreSQL recovery acceptance',function(){
  it('exposes incomplete compensation and permits idempotent operator cleanup',async()=>{
   const {h,id}=await runtime.start();runtime.store.faults.set(id+':activate',{refuse:true});runtime.store.faults.set(id+':release',{refuse:true});await runtime.approve(h);const result=await h.result();assert.equal(result.status,'compensation_failed');assert.equal(result.errorCode,'manual_recovery_required');assert.equal((await runtime.store.inspect(id)).reserved,true);runtime.store.faults.delete(id+':release');await runtime.store.apply('release',result.request);const duplicate=await runtime.store.apply('release',result.request);assert.equal(duplicate.replayed,true);assert.equal((await runtime.store.inspect(id)).reserved,false);
  });
+ it('rejects unauthorized decisions and expires while its worker is offline',async()=>{
+  const first=await runtime.start();for(const actor of [{id:'requester',tenantId:'runtime',roles:['security-reviewer']},{id:'intruder',tenantId:'other',roles:['security-reviewer']},{id:'viewer',tenantId:'runtime',roles:['requester']}]){const command=runtime.command(undefined,{actor});await runtime.approve(first.h,command);assert.equal((await runtime.receipt(first.h,command.id)).outcome,'rejected')}await first.h.signal('cancel',{id:'requester',tenantId:'runtime',roles:['requester']});assert.equal((await first.h.result()).status,'cancelled');
+  const {h,id}=await runtime.start(2000);await runtime.stopWorker();await pause(2200);await runtime.approve(h);await runtime.startWorker();const result=await h.result();assert.equal(result.status,'expired');assert.equal(await runtime.store.inspect(id),null);
+ });
  /* CASES */
 });
