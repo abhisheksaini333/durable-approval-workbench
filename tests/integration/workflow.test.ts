@@ -51,4 +51,10 @@ describe('real Temporal workflow',function(){
   await exercise(async h=>{await h.signal(decide,{id:'approve-4',stage:'security',actor:reviewer,choice:'approve',note:'',revision:0});const s=await h.result();assert.equal(s.status,'compensation_failed');assert.equal(s.errorCode,'manual_recovery_required');assert.equal(s.reserved,true);
   },{}, {reserve:async()=>{},activate:async()=>{throw ApplicationFailure.nonRetryable('declined','ProviderRejected')},deactivate:async()=>{},release:async()=>{throw ApplicationFailure.nonRetryable('unavailable','ProviderRejected')}});
  });
+ it('finishes queued approval and cancellation without leaving a completed execution cancelling',async()=>{
+  const taskQueue='queued-'+randomUUID();const h=await env.workflowClient.start(onboarding,{workflowId:randomUUID(),taskQueue,args:[input as any]});
+  await h.signal(decide,{id:'queued-approval',stage:'security',actor:reviewer as any,choice:'approve',note:'',revision:0});await h.signal(cancel,{id:'requester',tenantId:'acme',roles:['requester']});
+  const effects:string[]=[];const worker=await Worker.create({connection:env.nativeConnection,taskQueue,workflowsPath:require.resolve('../../src/workflows/onboarding'),activities:{reserve:async()=>{effects.push('reserve')},activate:async()=>{effects.push('activate')}}});const running=worker.run();try{const result=await h.result();assert.equal(result.status,'cancelled');assert.equal(result.cancellationRequested,true);assert.deepEqual(effects,[])}finally{worker.shutdown();await running}
+ });
+
 });

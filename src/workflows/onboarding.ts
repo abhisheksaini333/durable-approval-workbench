@@ -16,6 +16,7 @@ export async function onboarding(input:OnboardingInput){
  if(state.status==='pending'){state.reminded=true;appendAudit(state,'review_reminder',Date.now(),undefined,state.policy.stages[state.stageIndex]);}
  await condition(()=>state.status!=='pending',Math.max(1,state.deadline-Date.now()));
  state=expire(state,Date.now());
+ if(state.status==='cancelling'){state.status='cancelled';state.revision++;appendAudit(state,'cancelled',Date.now());}
  if(state.status==='provisioning'){
   let reserveAttempted=false,activateAttempted=false;
   try{
