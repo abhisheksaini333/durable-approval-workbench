@@ -1,0 +1,3 @@
+import {strict as assert} from 'assert';
+import {needsAttention} from '../../web/src/attention';
+it('escalates unacknowledged reminders and unavailable or failed work to operator attention',()=>{const entry:any={stateUnavailable:false,snapshot:{status:'pending',reminded:false}};assert.equal(needsAttention(entry),false);entry.snapshot.reminded=true;assert.equal(needsAttention(entry),true);entry.snapshot.status='approved';assert.equal(needsAttention(entry),false);entry.stateUnavailable=true;assert.equal(needsAttention(entry),true);entry.stateUnavailable=false;entry.snapshot.status='compensation_failed';assert.equal(needsAttention(entry),true)});
