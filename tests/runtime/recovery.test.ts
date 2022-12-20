@@ -1,6 +1,8 @@
 import {strict as assert} from 'assert';
 import {mkdirSync,writeFileSync} from 'fs';
 import {Runtime,pause} from './harness';
+import {recoverResource} from '../../src/operations/recover';
+import {callProvider} from '../../src/activities/http';
 import {exportHistory,replayHistory} from '../../src/operations/history';
 describe('Temporal server and PostgreSQL recovery acceptance',function(){
  this.timeout(90000);const runtime=new Runtime();
@@ -16,7 +18,7 @@ describe('Temporal server and PostgreSQL recovery acceptance',function(){
   const {h,id}=await runtime.start();let enter!:()=>void,release!:()=>void;const entered=new Promise<void>(r=>enter=r),block=new Promise<void>(r=>release=r);runtime.store.faults.set(id+':reserve',{block,entered:enter});await runtime.approve(h);await entered;await h.signal('cancel',{id:'requester',tenantId:'runtime',roles:['requester']});assert.equal((await h.query('snapshot')).status,'cancelling');release();const result=await h.result();assert.equal(result.status,'cancelled');assert.deepEqual(runtime.store.calls.filter(x=>x.requestId===id).map(x=>x.operation),['reserve','release']);const resource=await runtime.store.inspect(id);assert.equal(resource.reserved,false);assert.equal(resource.activated,false);assert.equal(resource.released,true);
  });
  it('exposes incomplete compensation and permits idempotent operator cleanup',async()=>{
-  const {h,id}=await runtime.start();runtime.store.faults.set(id+':activate',{refuse:true});runtime.store.faults.set(id+':release',{refuse:true});await runtime.approve(h);const result=await h.result();assert.equal(result.status,'compensation_failed');assert.equal(result.errorCode,'manual_recovery_required');assert.equal((await runtime.store.inspect(id)).reserved,true);runtime.store.faults.delete(id+':release');await runtime.store.apply('release',result.request);const duplicate=await runtime.store.apply('release',result.request);assert.equal(duplicate.replayed,true);assert.equal((await runtime.store.inspect(id)).reserved,false);
+  const {h,id}=await runtime.start();runtime.store.faults.set(id+':activate',{refuse:true});runtime.store.faults.set(id+':release',{refuse:true});await runtime.approve(h);const result=await h.result();assert.equal(result.status,'compensation_failed');assert.equal(result.errorCode,'manual_recovery_required');assert.equal((await runtime.store.inspect(id)).reserved,true);runtime.store.faults.delete(id+':release');const cleanup=()=>recoverResource(result,id,(operation,input)=>callProvider('http://127.0.0.1:'+runtime.port,runtime.token,operation,input));await cleanup();await cleanup();assert.equal((await runtime.store.inspect(id)).reserved,false);
  });
  it('rejects unauthorized decisions and expires while its worker is offline',async()=>{
   const first=await runtime.start();for(const actor of [{id:'requester',tenantId:'runtime',roles:['security-reviewer']},{id:'intruder',tenantId:'other',roles:['security-reviewer']},{id:'viewer',tenantId:'runtime',roles:['requester']}]){const command=runtime.command(undefined,{actor});await runtime.approve(first.h,command);assert.equal((await runtime.receipt(first.h,command.id)).outcome,'rejected')}await first.h.signal('cancel',{id:'requester',tenantId:'runtime',roles:['requester']});assert.equal((await first.h.result()).status,'cancelled');
