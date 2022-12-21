@@ -33,11 +33,14 @@ try:
   full=str(root/entry)
   with (local/(name+'.log')).open('ab') as log:process=subprocess.Popen([node,full],cwd=root,stdout=log,stderr=subprocess.STDOUT,start_new_session=True)
   started.append({'name':name,'pid':process.pid,'entry':full});record.write_text(json.dumps(started,indent=2)+'\n');record.chmod(0o600)
- deadline=time.monotonic()+120
+ deadline=time.monotonic()+360
  while time.monotonic()<deadline:
   if any(not alive(x['pid']) for x in started):raise RuntimeError('An application process exited; inspect .local/*.log')
   try:
    with urllib.request.urlopen('http://127.0.0.1:4900/ready',timeout=4) as response:
+    if response.status!=200:raise RuntimeError('Gateway unavailable')
+   with urllib.request.urlopen('http://127.0.0.1:4900/config.json',timeout=4) as response:issuer=json.load(response)['issuer']
+   with urllib.request.urlopen(issuer+'/.well-known/openid-configuration',timeout=4) as response:
     if response.status==200:break
   except Exception:time.sleep(1)
  else:raise RuntimeError('Gateway readiness timed out; inspect .local/*.log')
