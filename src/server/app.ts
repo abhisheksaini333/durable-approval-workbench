@@ -4,9 +4,10 @@ import {resolve} from 'path';
 import {existsSync} from 'fs';
 import {Actor,Decision,Policy,DomainError,identifier,parseRequest,parseDecision,record as objectRecord} from '../domain';
 import {Registry,RequestRecord} from './registry';
-export interface Workflows {ready():Promise<void>;start(record:RequestRecord,policy:Policy):Promise<void>;query(record:RequestRecord):Promise<any>;decide(record:RequestRecord,decision:Decision):Promise<void>;cancel(record:RequestRecord,actor:Actor):Promise<void>;}
+import {collectSnapshots} from './snapshots';
+export interface Workflows {ready():Promise<void>;start(record:RequestRecord,policy:Policy):Promise<void>;query(record:RequestRecord,timeoutMs?:number):Promise<any>;decide(record:RequestRecord,decision:Decision):Promise<void>;cancel(record:RequestRecord,actor:Actor):Promise<void>;}
 export interface AppConfig {origin:string;issuer:string;clientId:string;policy:Policy;}
-export interface Dependencies {mutationBudget?:number;now?:()=>number;registry:Registry;workflows:Workflows;config:AppConfig;authenticate:(header:unknown)=>Promise<Actor>;}
+export interface Dependencies {snapshotBudgetMs?:number;mutationBudget?:number;now?:()=>number;registry:Registry;workflows:Workflows;config:AppConfig;authenticate:(header:unknown)=>Promise<Actor>;}
 const route=(fn:(q:express.Request,r:express.Response)=>Promise<any>):express.RequestHandler=>(q,r,next)=>{Promise.resolve(fn(q,r)).catch(next)};
 export function createApp(deps:Dependencies){
  const responses:Record<string,number>={};
@@ -46,7 +47,7 @@ export function createApp(deps:Dependencies){
  app.get('/api/requests',route(async(q,r)=>{
   const params=objectRecord(q.query,['limit','cursor']);if((params.limit!==undefined&&typeof params.limit!=='string')||(params.cursor!==undefined&&typeof params.cursor!=='string'))throw new DomainError('invalid_query','Invalid page parameters');
   const page=await registry.list(r.locals.actor,params.limit===undefined?20:Number(params.limit),params.cursor as string|undefined);
-  const items=[];for(let i=0;i<page.items.length;i+=4){items.push(...await Promise.all(page.items.slice(i,i+4).map(async entry=>{try{return {...entry,snapshot:await workflows.query(entry),stateUnavailable:false}}catch{return {...entry,snapshot:null,stateUnavailable:true}}})))}
+  const items=await collectSnapshots(page.items,(entry,remaining)=>workflows.query(entry,remaining),deps.snapshotBudgetMs||3500);
   r.json({items,nextCursor:page.nextCursor});
  }));
  app.get('/api/metrics',route(async(_q,r)=>{requireRole(r.locals.actor,['operator']);r.json({httpResponses:{...responses},uptimeSeconds:Math.floor(process.uptime())})}));
