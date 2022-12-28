@@ -9,7 +9,7 @@ test('requester and both reviewers complete a durable onboarding journey',async(
  const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));await login(page,'requester');const customer='Browser Northstar '+randomUUID().slice(0,8);await create(page,customer);await expect(page.locator('button:text-is("Approve request")')).toHaveCount(0);
  const contexts:BrowserContext[]=[];try{
   for(const account of ['security','commercial']){const context=await browser.newContext({baseURL:'http://localhost:4900'});contexts.push(context);const reviewer=await context.newPage();await login(reviewer,account);await approve(reviewer,customer,account+' evidence verified')}
-  await expect(page.locator('.detail .badge')).toHaveText('Approved');await expect(page.locator('.timeline')).toContainText('Service Activated');mkdirSync('artifacts',{recursive:true});await page.screenshot({path:'artifacts/switchboard-desktop.png',fullPage:true});expect(errors).toEqual([]);
+  await expect(page.locator('.detail .badge')).toHaveText('Approved');await expect(page.locator('.queue-item').filter({hasText:customer}).locator('.badge')).toHaveText('approved');await expect(page.locator('.timeline')).toContainText('Service Activated');mkdirSync('artifacts',{recursive:true});await page.screenshot({path:'artifacts/switchboard-desktop.png',fullPage:true});expect(errors).toEqual([]);
  }finally{for(const context of contexts)await context.close()}
 });
 test('a lost browser request preserves its retry key and cancellation remains explicit',async({page})=>{
