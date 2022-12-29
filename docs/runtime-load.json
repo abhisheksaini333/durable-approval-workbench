@@ -1,0 +1,8 @@
+{
+  "workflows": 12,
+  "workerActivityConcurrency": 4,
+  "workerWorkflowConcurrency": 4,
+  "elapsedMilliseconds": 3452,
+  "logicalEffects": 24,
+  "scope": "Local Temporal 1.17.1 and PostgreSQL 13; this is a bounded smoke measurement, not a capacity forecast"
+}
