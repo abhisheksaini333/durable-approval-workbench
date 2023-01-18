@@ -14,7 +14,7 @@ export function loadConfig(env:Record<string,string|undefined>=process.env){
   const provider=url(env.PROVIDER_URL,'http://127.0.0.1:4903');if(provider.pathname!=='/')throw new Error();
   const token=env.PROVIDER_TOKEN;if(!token||token.length<32||token.length>512)throw new Error();
   const port=Number(env.PORT||4900),providerPort=Number(env.PROVIDER_PORT||4903);if([port,providerPort].some(p=>!Number.isInteger(p)||p<1024||p>65535))throw new Error();
-  const address=env.TEMPORAL_ADDRESS||'127.0.0.1:4904';if(!/^[A-Za-z0-9.-]+:[0-9]{2,5}$/.test(address))throw new Error();
+  const address=env.TEMPORAL_ADDRESS||'127.0.0.1:4904';if(!/^[A-Za-z0-9.-]+:[1-9][0-9]{0,4}$/.test(address)||Number(address.split(':')[1])>65535)throw new Error();
   return {databaseUrl:database.toString(),providerUrl:provider.origin,providerToken:token,origin:origin.origin,issuer:issuer.toString(),audience:'switchboard-api',clientId:'switchboard',port,providerPort,temporalAddress:address,namespace:identifier(env.TEMPORAL_NAMESPACE||'default','namespace'),taskQueue:identifier(env.TASK_QUEUE||'switchboard','task queue'),policy:parsePolicy({stages:['security','commercial'],approvalTimeoutMs:Number(env.APPROVAL_TIMEOUT_MS||600000),reminderAfterMs:Number(env.REMINDER_AFTER_MS||300000)})};
  }catch{throw new Error('Invalid runtime configuration; check the documented environment fields')}
 }
