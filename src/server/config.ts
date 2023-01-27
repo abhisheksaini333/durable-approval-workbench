@@ -2,7 +2,7 @@ import {readFileSync,existsSync} from 'fs';
 import {parsePolicy,identifier} from '../domain';
 export function loadEnvironment(file='.env'){
  const allowed=new Set(['DATABASE_URL','PROVIDER_TOKEN','OIDC_ISSUER','PUBLIC_ORIGIN','PROVIDER_URL','PORT','PROVIDER_PORT','TEMPORAL_ADDRESS','TEMPORAL_NAMESPACE','TASK_QUEUE','APPROVAL_TIMEOUT_MS','REMINDER_AFTER_MS']);
- if(existsSync(file))for(const line of readFileSync(file,'utf8').split('\n')){const i=line.indexOf('=');if(i>0&&allowed.has(line.slice(0,i))&&!process.env[line.slice(0,i)])process.env[line.slice(0,i)]=line.slice(i+1)}
+ if(existsSync(file))for(const raw of readFileSync(file,'utf8').split(/\r?\n/)){const line=raw.trimStart();if(!line||line.startsWith('#'))continue;const i=line.indexOf('=');if(i>0&&allowed.has(line.slice(0,i))&&process.env[line.slice(0,i)]===undefined)process.env[line.slice(0,i)]=line.slice(i+1)}
 }
 export function loadConfig(env:Record<string,string|undefined>=process.env){
  try{
