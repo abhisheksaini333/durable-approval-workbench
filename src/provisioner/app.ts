@@ -3,7 +3,7 @@ import {timingSafeEqual} from 'crypto';
 import {DomainError} from '../domain';
 import {EffectStore,Operation,operations} from './store';
 export function providerApp(store:EffectStore,token:string){
- if(token.length<32)throw new Error('Provider credential must contain at least 32 characters');
+ if(typeof token!=='string'||token.length<32||token.length>512||!/^[!-~]+$/.test(token))throw new Error('Provider credential must contain 32 to 512 printable non-whitespace characters');
  const app=express();app.disable('x-powered-by');app.get('/health',(_q,r)=>r.json({status:'ok'}));
  app.use((q,r,next)=>{const actual=Buffer.from(q.get('authorization')||''),expected=Buffer.from('Bearer '+token);if(actual.length!==expected.length||!timingSafeEqual(actual,expected)){r.status(401).json({error:'unauthorized'});return}next()});
  app.use(express.json({limit:'8kb'}));
