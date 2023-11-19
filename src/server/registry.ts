@@ -3,7 +3,7 @@ import {randomUUID} from 'crypto';
 import {Actor,RequestInput,DomainError,parseActor,parseRequest,identifier} from '../domain';
 import {workflowIdentity} from './identity';
 export async function transaction<T>(pool:Pool,fn:(client:PoolClient)=>Promise<T>):Promise<T>{
- const client=await pool.connect();try{await client.query('BEGIN');const value=await fn(client);await client.query('COMMIT');return value}catch(error){await client.query('ROLLBACK');throw error}finally{client.release()}
+ const client=await pool.connect();let broken:Error|undefined;try{await client.query('BEGIN');const value=await fn(client);await client.query('COMMIT');return value}catch(error){try{await client.query('ROLLBACK')}catch(rollbackError){broken=rollbackError instanceof Error?rollbackError:new Error('Rollback failed')}throw error}finally{client.release(broken)}
 }
 export async function migrate(pool:Pool){await transaction(pool,async client=>{
  await client.query('SELECT pg_advisory_xact_lock(4932022)');
