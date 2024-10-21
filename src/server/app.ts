@@ -7,7 +7,7 @@ import {Registry,RequestRecord} from './registry';
 import {collectSnapshots} from './snapshots';
 export interface Workflows {ready():Promise<void>;start(record:RequestRecord,policy:Policy):Promise<void>;query(record:RequestRecord,timeoutMs?:number):Promise<any>;decide(record:RequestRecord,decision:Decision):Promise<void>;cancel(record:RequestRecord,actor:Actor):Promise<void>;}
 export interface AppConfig {origin:string;issuer:string;clientId:string;policy:Policy;}
-export interface Dependencies {snapshotBudgetMs?:number;mutationBudget?:number;now?:()=>number;registry:Registry;workflows:Workflows;config:AppConfig;authenticate:(header:unknown)=>Promise<Actor>;}
+export interface Dependencies {readinessBudgetMs?:number;snapshotBudgetMs?:number;mutationBudget?:number;now?:()=>number;registry:Registry;workflows:Workflows;config:AppConfig;authenticate:(header:unknown)=>Promise<Actor>;}
 const route=(fn:(q:express.Request,r:express.Response)=>Promise<any>):express.RequestHandler=>(q,r,next)=>{Promise.resolve(fn(q,r)).catch(next)};
 export function createApp(deps:Dependencies){
  const responses:Record<string,number>={};
@@ -21,7 +21,7 @@ export function createApp(deps:Dependencies){
   const identityOrigin=new URL(config.issuer).origin;r.setHeader('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' "+identityOrigin+"; frame-src "+identityOrigin+"; object-src 'none'; base-uri 'self'; frame-ancestors 'none'");next();
  });
  app.get('/health',(_q,r)=>r.json({status:'ok'}));
- app.get('/ready',route(async(_q,r)=>{try{await Promise.all([registry.pool.query('SELECT 1'),workflows.ready()]);r.json({status:'ready'})}catch{r.status(503).json({status:'unavailable'})}}));
+ app.get('/ready',route(async(_q,r)=>{let timer:NodeJS.Timeout|undefined;try{await Promise.race([Promise.all([registry.pool.query('SELECT 1'),workflows.ready()]),new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error('Readiness deadline exceeded')),deps.readinessBudgetMs??3500)})]);r.json({status:'ready'})}catch{r.status(503).json({status:'unavailable'})}finally{if(timer)clearTimeout(timer)}}));
  app.get('/config.json',(_q,r)=>r.json({issuer:config.issuer,clientId:config.clientId}));
  app.use('/api',(q,r,next)=>{deps.authenticate(q.get('authorization')).then(actor=>{r.locals.actor=actor;next()},next)});
  const mutationWindows=new Map<string,{start:number;count:number}>();
