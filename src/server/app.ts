@@ -45,7 +45,7 @@ export function createApp(deps:Dependencies){
  }));
  app.post('/api/requests/:id/cancel',route(async(q,r)=>{objectRecord(q.body,[]);const actor=r.locals.actor as Actor,entry=await registry.get(actor,q.params.id);if(entry.requesterId!==actor.id&&!actor.roles.includes('operator'))throw new DomainError('forbidden','Only the requester or an operator can cancel',403);await workflows.cancel(entry,actor);r.status(202).json({status:'submitted'})}));
  app.get('/api/requests',route(async(q,r)=>{
-  const params=objectRecord(q.query,['limit','cursor']);if((params.limit!==undefined&&typeof params.limit!=='string')||(params.cursor!==undefined&&typeof params.cursor!=='string'))throw new DomainError('invalid_query','Invalid page parameters');
+  const params=objectRecord(q.query,['limit','cursor']);if((params.limit!==undefined&&(typeof params.limit!=='string'||! /^[1-9][0-9]*$/.test(params.limit)))||(params.cursor!==undefined&&typeof params.cursor!=='string'))throw new DomainError('invalid_query','Invalid page parameters');
   const page=await registry.list(r.locals.actor,params.limit===undefined?20:Number(params.limit),params.cursor as string|undefined);
   const items=await collectSnapshots(page.items,(entry,remaining)=>workflows.query(entry,remaining),deps.snapshotBudgetMs||3500);
   r.json({items,nextCursor:page.nextCursor});
