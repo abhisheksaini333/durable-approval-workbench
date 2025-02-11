@@ -21,3 +21,5 @@ function apiFixture(options:any={}){const actor={id:'owner',tenantId:'team',role
 it("maintenance DAW08",async()=>{const f=apiFixture({readinessBudgetMs:30});f.workflows.ready=()=>new Promise(resolve=>setTimeout(resolve,350));let response:any;try{response=await require('supertest')(f.app).get('/ready').timeout({response:250,deadline:350})}catch(error){assert.fail('Readiness did not return a bounded response')}assert.equal(response.status,503);assert.deepEqual(response.body,{status:'unavailable'})});
 
 it("maintenance DAW09",async()=>{const f=apiFixture(),request=require('supertest');for(const limit of ['0x10','1e1','%2010','0','-1'])await request(f.app).get('/api/requests?limit='+limit).expect(400);for(const limit of ['1','50'])await request(f.app).get('/api/requests?limit='+limit).expect(200)});
+
+it("maintenance DAW10",()=>{for(const key of ['mutationBudget','snapshotBudgetMs','readinessBudgetMs'])for(const value of [0,-1,NaN,Infinity,100001])assert.throws(()=>apiFixture({[key]:value}),/Invalid/);assert(apiFixture({mutationBudget:1,snapshotBudgetMs:10,readinessBudgetMs:10}).app)});

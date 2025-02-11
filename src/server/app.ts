@@ -10,6 +10,7 @@ export interface AppConfig {origin:string;issuer:string;clientId:string;policy:P
 export interface Dependencies {readinessBudgetMs?:number;snapshotBudgetMs?:number;mutationBudget?:number;now?:()=>number;registry:Registry;workflows:Workflows;config:AppConfig;authenticate:(header:unknown)=>Promise<Actor>;}
 const route=(fn:(q:express.Request,r:express.Response)=>Promise<any>):express.RequestHandler=>(q,r,next)=>{Promise.resolve(fn(q,r)).catch(next)};
 export function createApp(deps:Dependencies){
+ for(const [name,value,maximum] of [['mutationBudget',deps.mutationBudget,10000],['snapshotBudgetMs',deps.snapshotBudgetMs,60000],['readinessBudgetMs',deps.readinessBudgetMs,60000]] as const){if(value!==undefined&&(!Number.isInteger(value)||value<1||value>maximum))throw new Error('Invalid '+name);}
  const responses:Record<string,number>={};
  const {registry,workflows,config}=deps;const app=express();app.disable('x-powered-by');
  app.use((_q,r,next)=>{r.on('finish',()=>{const key=String(Math.floor(r.statusCode/100))+'xx';responses[key]=(responses[key]||0)+1});r.locals.traceId=randomUUID();r.setHeader('X-Request-Id',r.locals.traceId);next()});
