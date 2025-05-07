@@ -23,3 +23,5 @@ it("maintenance DAW08",async()=>{const f=apiFixture({readinessBudgetMs:30});f.wo
 it("maintenance DAW09",async()=>{const f=apiFixture(),request=require('supertest');for(const limit of ['0x10','1e1','%2010','0','-1'])await request(f.app).get('/api/requests?limit='+limit).expect(400);for(const limit of ['1','50'])await request(f.app).get('/api/requests?limit='+limit).expect(200)});
 
 it("maintenance DAW10",()=>{for(const key of ['mutationBudget','snapshotBudgetMs','readinessBudgetMs'])for(const value of [0,-1,NaN,Infinity,100001])assert.throws(()=>apiFixture({[key]:value}),/Invalid/);assert(apiFixture({mutationBudget:1,snapshotBudgetMs:10,readinessBudgetMs:10}).app)});
+
+it("maintenance DAW11",async()=>{const {callProvider}=require('../../src/activities/http');for(const base of ['http://user:secret@127.0.0.1:1','ftp://127.0.0.1:1','http://127.0.0.1:1/path','http://127.0.0.1:1?x=1'])await assert.rejects(callProvider(base,'credential','reserve',{},10),(e:any)=>e.type==='ProviderRejected');await assert.rejects(callProvider('http://127.0.0.1:1','credential','../other',{},10),(e:any)=>e.type==='ProviderRejected')});
