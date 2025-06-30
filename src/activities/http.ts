@@ -3,6 +3,8 @@ import {request as httpsRequest} from 'https';
 import {ApplicationFailure,Context} from '@temporalio/activity';
 import {EffectInput,ProvisioningActivities} from './contracts';
 export async function callProvider(base:string,token:string,operation:string,input:EffectInput,timeoutMs=3000,signal?:AbortSignal):Promise<void>{
+ if(!Number.isInteger(timeoutMs)||timeoutMs<1||timeoutMs>60000)throw ApplicationFailure.nonRetryable('Invalid provider deadline','ProviderRejected');
+ if(signal?.aborted)throw ApplicationFailure.retryable('Provider request cancelled','ProviderUnavailable');
  let root:URL;try{root=new URL(base);if(root.username||root.password||root.search||root.hash||root.pathname!=='/'||!(root.protocol==='https:'||(root.protocol==='http:'&&['localhost','127.0.0.1','[::1]'].includes(root.hostname)))||!['reserve','activate','deactivate','release'].includes(operation))throw new Error();}catch{throw ApplicationFailure.nonRetryable('Invalid provider target','ProviderRejected')}
  const target=new URL('/effects/'+operation,root),payload=JSON.stringify(input);
  return new Promise((resolve,reject)=>{
