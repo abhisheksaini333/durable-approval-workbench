@@ -2,6 +2,7 @@ export class ApiError extends Error {constructor(public status:number,public cod
 let bearer:()=>Promise<string>=async()=>'';
 export function configureToken(resolve:()=>Promise<string>){bearer=resolve}
 export async function api<T>(path:string,options:{method?:string;body?:unknown;key?:string;signal?:AbortSignal}={}):Promise<T>{
+ let pathname:string;try{pathname=decodeURIComponent(path.split('?',1)[0]);if(!path.startsWith('/')||pathname.startsWith('//')||path.includes('#')||/[\x00-\x1f\x7f\\]/.test(pathname)||pathname.split('/').some(part=>part==='.'||part==='..'))throw new Error()}catch{throw new Error('Invalid application API path')}
  if(options.signal?.aborted)throw new Error('Request cancelled before submission');
  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),10000);const abort=()=>controller.abort();options.signal?.addEventListener('abort',abort,{once:true});
  try{const token=await bearer();if(controller.signal.aborted)throw new Error('Request cancelled');const response=await fetch('/api'+path,{method:options.method||'GET',signal:controller.signal,credentials:'omit',headers:{Authorization:'Bearer '+token,...(options.body===undefined?{}:{'Content-Type':'application/json'}),...(options.key?{'Idempotency-Key':options.key}:{})},...(options.body===undefined?{}:{body:JSON.stringify(options.body)})});
